@@ -7,8 +7,8 @@
 | GitHub-repository `Hylke75/woningtekst` | bijgewerkt (branch `claude/gracious-allen-575elw`), CI-workflow aanwezig |
 | Lokale volledige stack (Supabase CLI + Docker) | werkend; alle migraties, integratie- en E2E-tests geslaagd |
 | Supabase-productieproject | **ingericht**: `korff-woningtekst-studio` (ref `zviyywxjokjspovpkiku`, regio eu-west-1 Ierland). Alle 5 migraties toegepast (checksums gecontroleerd), organisatie aangemaakt met uitnodiging voor de eerste administrator, Advisors gecontroleerd (alleen bewuste RPC-meldingen). Server-geheim (hash) en Auth-instellingen: zie stap 1.3–1.4. |
-| Vercel-project | **gedeployed**: `korff-woningtekst-studio`, gekoppeld aan `Hylke75/woningtekst` (productiebranch `main`); build slaagt. Werkt pas zodra de environment variables (stap 2.3) voor Production zijn gezet en opnieuw is gedeployed. |
-| Anthropic API-sleutel | **blocker**: niet beschikbaar; de applicatie toont "Claude is nog niet gekoppeld" tot `ANTHROPIC_API_KEY` is ingesteld. De live-test is daardoor niet uitgevoerd. |
+| Vercel-project | **live**: https://korff-woningtekst-studio.vercel.app (project `korff-woningtekst-studio`, gekoppeld aan `Hylke75/woningtekst`, productiebranch `main`, functies in fra1). Environment variables gezet, security headers en doorverwijzing van niet-ingelogde gebruikers gecontroleerd op 8 oktober 2026. |
+| Anthropic API-sleutel | door de eigenaar zelf in Vercel gezet (Sensitive); controleer onder Instellingen › Configuratie of Claude "Gekoppeld" toont. Stel bij Anthropic een maandlimiet in. |
 | Voorbeelddocument `Korff-de-Gidts-woningomschrijvingen.docx` | **blocker**: niet aangetroffen in repository of Google Drive; analyseer het na livegang via Schrijfwijzer › Voorbeelden analyseren. |
 
 ## 1. Supabase
