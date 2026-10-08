@@ -24,7 +24,7 @@ export const CHANNEL_SPECS: Record<Channel, { minWords: number; maxWords: number
 
 const EMOJI_RE = /\p{Extended_Pictographic}/u;
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
-const PHONE_RE = /(?:\+31|0031|\b0)[\s-]?(?:\d[\s-]?){8,9}\b/g;
+const PHONE_RE = /(?:\+31|0031|\b0)[ -]?(?:\d[ -]?){8,9}\b/g;
 const HASHTAG_RE = /(^|\s)#[\p{L}\p{N}_]{2,}/u;
 const PRICE_RE = /(€\s?\d|\bvraagprijs\b|\basking price\b|\bk\.k\.\b|\bv\.o\.n\.\b)/i;
 

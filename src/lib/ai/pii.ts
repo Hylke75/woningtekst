@@ -12,10 +12,11 @@ export type MaskResult = { text: string; counts: Record<string, number> };
 
 const LABELLED_PERSON =
   /^(\s*(?:verkoper|verkopers|verkoopster|koper|kopers|eigenaar|eigenaren|eigena(?:a|ren)|huurder|huurders|bewoner|bewoners|opdrachtgever|naam|contactpersoon verkoper|erfgenamen|de heer|mevrouw|dhr\.?|mevr\.?)\s*[:\-–]\s*)(.+)$/gim;
-const TITLE_NAME = /\b(de heer|mevrouw|dhr\.|mevr\.|mr\.|mrs\.|ms\.|mw\.)\s+(?:[A-Z]\.?\s*){0,3}[A-Z][a-zà-ÿ'-]+(?:\s+(?:van|de|der|den|ter|ten|het|'t)\b)*(?:\s+[A-Z][a-zà-ÿ'-]+)?/g;
+const TITLE_NAME =
+  /\b(?:[Dd]e [Hh]eer|[Mm]evrouw|[Dd]hr\.|[Mm]evr\.|[Mm]w\.|[Mm]r\.|[Mm]rs\.|[Mm]s\.|[Ff]amilie|[Ff]am\.)\s+(?:[A-Z]\.\s*){0,4}(?:(?:van|de|der|den|ter|ten|het|'t|la|le|du|von)\s+){0,3}[A-Z][a-zà-ÿ'-]+(?:[- ][A-Z][a-zà-ÿ'-]+)?/g;
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const IBAN = /\b[A-Z]{2}\d{2}\s?(?:[A-Z0-9]{4}\s?){2,7}[A-Z0-9]{1,4}\b/g;
-const PHONE = /(?:\+31|0031|\b0)[\s-]?(?:\d[\s-]?){8,9}\b/g;
+const PHONE = /(?:\+31|0031|\b0)[ -]?(?:\d[ -]?){8,9}\b/g;
 const BIRTH = /\b(geboren(?:\s+op)?|geboortedatum|geb\.)\s*[:]?\s*\d{1,2}[-/ .](?:\d{1,2}|[a-z]+)[-/ .]\d{2,4}/gi;
 const NINE_DIGITS = /\b\d{9}\b/g;
 
