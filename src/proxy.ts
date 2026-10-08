@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { buildCsp, createNonce } from "@/lib/csp";
 
-const PUBLIC_PATHS = ["/inloggen", "/wachtwoord-vergeten", "/registreren", "/auth"];
+// /api/cron heeft geen gebruikerssessie; de route eist zelf het CRON_SECRET.
+const PUBLIC_PATHS = ["/inloggen", "/wachtwoord-vergeten", "/registreren", "/auth", "/api/cron"];
 
 /**
  * Ververst de Supabase-sessie bij elk verzoek en stuurt niet-ingelogde
