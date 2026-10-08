@@ -34,6 +34,26 @@
 5. Controleer **Advisors** (security en performance) in het dashboard.
 6. Sluit de verwerkersovereenkomst (DPA) af (zie PRIVACY.md).
 
+## 1b. E-mail via Resend (alle auth-mails)
+
+Alle mails (bevestiging, uitnodiging, wachtwoordherstel, e-mailwijziging) verstuurt Supabase Auth. Die gaan via Resend door Supabase Auth op SMTP te zetten; de applicatie zelf verstuurt geen mail.
+
+1. In Resend is het verzenddomein **`mail.korffdegidts.nl`** (regio eu-west-1, TLS enforced, geen tracking) aangemaakt. Een subdomein laat de bestaande mailinstellingen (SPF/DMARC) van korffdegidts.nl ongemoeid.
+2. DNS van korffdegidts.nl staat bij **Realworks** (ns1/ns2.realworks.nl). Laat daar deze records toevoegen (namen relatief aan `korffdegidts.nl`):
+
+| Type | Naam | Waarde | Prioriteit |
+|---|---|---|---|
+| TXT | `resend._domainkey.mail` | DKIM-sleutel uit het Resend-dashboard (Domains › mail.korffdegidts.nl) | |
+| MX | `send.mail` | `feedback-smtp.eu-west-1.amazonses.com` | 10 |
+| TXT | `send.mail` | `v=spf1 include:amazonses.com ~all` | |
+| CNAME | `rsend.mail` | `send.forge.rmta.net` | |
+
+3. Pas als Resend het domein als **verified** toont: Supabase › Authentication › Emails › SMTP Settings:
+   host `smtp.resend.com`, poort `465`, gebruikersnaam `resend`, wachtwoord = een Resend API-sleutel met alleen verzendrechten voor `mail.korffdegidts.nl`, afzender `woningtekst@mail.korffdegidts.nl`, naam "Korff de Gidts Woningtekst Studio". Verhoog daarna onder Rate Limits het aantal e-mails per uur (bijv. 100).
+   Zet SMTP niet eerder om: met een niet-geverifieerd domein mislukken alle auth-mails.
+4. E-mailtemplates (Nederlands) gebruiken `token_hash`-links naar `/auth/callback`, zodat links ook op een ander apparaat werken:
+   `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=<signup|invite|recovery|email_change|magiclink>`.
+
 ## 2. Vercel
 
 1. Importeer `Hylke75/woningtekst` als nieuw project **`korff-woningtekst-studio`** (Framework: Next.js; `vercel.json` zet functies in **fra1**). Zorg dat de Vercel GitHub-app toegang heeft tot de repository.
