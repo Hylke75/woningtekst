@@ -187,6 +187,13 @@ export const STYLE_GUIDE_ANALYSIS_SYSTEM = `Je bent hoofdredacteur en vastgoedco
 - "analyse" beschrijft kort je bevindingen over de voorbeelden (patronen, sterke punten, zwakke punten).
 ${DATA_BOUNDARY}`;
 
+export const CORRECTIONS_ANALYSIS_SYSTEM = `Je bent hoofdredacteur van Korff de Gidts NVM Makelaardij. Je krijgt paren van teksten: telkens de oorspronkelijke AI-tekst (<ai>) en de versie die een medewerker uiteindelijk heeft goedgekeurd (<goedgekeurd>). Leid uit de verschillen af wat medewerkers structureel aanpassen, en verwerk dat in een verbeterde schrijfwijzer.
+- Kijk naar patronen die in meerdere paren terugkomen: woorden of formuleringen die steeds worden geschrapt of vervangen, lengte, toon, volgorde, opbouw van de opening, gebruik van feiten. Eenmalige, woningspecifieke correcties (een getal, een straatnaam) negeer je.
+- Begin "analyse" met de belangrijkste patronen, elk met een kort geanonimiseerd voorbeeld (oud → nieuw) en hoe vaak het voorkwam.
+- "voorstel_markdown" is de VOLLEDIGE huidige schrijfwijzer uit <huidige_schrijfwijzer>, met de verbeteringen verwerkt. Behoud alle bestaande secties en standaardpassages (<!-- passage:… --> blokken) letterlijk; vul de sectie "Te vermijden" aan met formuleringen die medewerkers steeds schrappen (één per regel, beginnend met "- ").
+- Neem geen adressen, namen of andere identificerende gegevens op.
+${DATA_BOUNDARY}`;
+
 // ---------------------------------------------------------------------------
 // Woningprofiel voor prompts
 // ---------------------------------------------------------------------------

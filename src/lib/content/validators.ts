@@ -1,5 +1,6 @@
 import type { Channel, IssueSeverity, Language } from "@/lib/db-types";
 import { htmlToPlainText, wordCount } from "@/lib/content/html";
+import { readability } from "@/lib/content/readability";
 
 /**
  * Deterministische eindcontrole (opdracht §8 stap 9). Deze controles zijn
@@ -97,6 +98,14 @@ export function checkText(t: TextUnderCheck, ctx: CheckContext): Finding[] {
 
   if ((t.channel === "facebook" || t.channel === "instagram") && !ctx.priceOnSocial && PRICE_RE.test(plain)) {
     findings.push({ ...base, severity: "kritiek", category: "publicatie", description: "De prijs wordt genoemd, terwijl prijs op social media is uitgeschakeld." });
+  }
+
+  const read = readability(plain, t.language);
+  if (read && read.score < 30) {
+    findings.push({ ...base, severity: "info", category: "leesbaarheid", description: `Moeilijk leesbaar (score ${read.score}, gemiddeld ${read.avgWordsPerSentence} woorden per zin). Kortere zinnen en eenvoudigere woorden helpen.` });
+  }
+  if (read && read.longSentences.length >= 3) {
+    findings.push({ ...base, severity: "info", category: "leesbaarheid", description: `${read.longSentences.length} lange zinnen, bijv. "${read.longSentences[0]}". Overweeg ze te splitsen.` });
   }
 
   const [minTags, maxTags] = spec.hashtags;

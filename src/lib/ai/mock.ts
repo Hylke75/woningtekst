@@ -189,6 +189,7 @@ export async function mockComplete(req: AiRequest): Promise<AiResponse> {
       });
     }
     case "schrijfwijzer_analyse":
+    case "correctie_analyse":
       return response(req, {
         analyse: "Analyse in testmodus.",
         voorstel_markdown: `# Schrijfwijzer (voorstel)\n\n${words(60, "Schrijf helder")}\n\n## 6. Te vermijden\n\n- een unieke kans\n- een oase van rust\n`,

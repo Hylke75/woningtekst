@@ -7,7 +7,8 @@ import { requireSession } from "@/lib/auth/session";
 import { AppError, fromDbError, runAction, type ActionResult } from "@/lib/errors";
 import { defaultStyleGuideMarkdown } from "@/lib/data/content";
 import { callClaude } from "@/lib/ai/call";
-import { STYLE_GUIDE_ANALYSIS_SYSTEM } from "@/lib/ai/prompts";
+import { CORRECTIONS_ANALYSIS_SYSTEM, STYLE_GUIDE_ANALYSIS_SYSTEM } from "@/lib/ai/prompts";
+import { collectCorrectionPairs } from "@/lib/data/corrections";
 import { styleGuideAnalysisSchema } from "@/lib/ai/schemas";
 import { maskPersonalData } from "@/lib/ai/pii";
 import { aiConfigured } from "@/lib/env";
@@ -132,6 +133,63 @@ export async function analyseExamples(formData: FormData): Promise<ActionResult<
         effort: "high",
       });
       const result = { analyse: r.data.analyse, voorstel: r.data.voorstel_markdown };
+      await updateJob(supabase, job.id, { status: "voltooid", currentStep: "voltooid", steps: { result } });
+      return result;
+    } catch (err) {
+      await failJob(supabase, job.id, err);
+      throw err;
+    }
+  });
+}
+
+/**
+ * Leert van correcties: vergelijkt AI-teksten met de uiteindelijk goedgekeurde
+ * versies (laatste 90 dagen) en stelt een verbeterde schrijfwijzer VOOR.
+ * Er wordt niets automatisch gepubliceerd.
+ */
+export async function analyseCorrections(idempotencyKey: string): Promise<ActionResult<{ analyse: string; voorstel: string; pairs: number }>> {
+  return runAction(async () => {
+    const session = await requireSession("styleguide.edit");
+    if (!aiConfigured()) throw new AppError("ai_niet_geconfigureerd", "Claude is nog niet gekoppeld.");
+    if (!/^[A-Za-z0-9_-]{8,120}$/.test(idempotencyKey)) throw new AppError("ongeldige_invoer", "Ongeldig verzoek.");
+    const supabase = await createClient();
+    const pairs = await collectCorrectionPairs(supabase);
+    if (pairs.length < 3) {
+      throw new AppError("ongeldige_invoer", `Er zijn nog te weinig gecorrigeerde en goedgekeurde teksten om van te leren (${pairs.length} van minimaal 3).`);
+    }
+    const { data: current } = await supabase.from("style_guides").select("content").eq("is_active", true).maybeSingle();
+    const { job, created } = await createOrGetJob(supabase, {
+      organizationId: session.organizationId,
+      userId: session.userId,
+      propertyId: null,
+      jobType: "schrijfwijzer_analyse",
+      idempotencyKey,
+      params: { soort: "correcties", paren: pairs.length },
+      inputHash: hashInput(pairs.map((p) => p.versionId)),
+    });
+    if (!created && job.status === "voltooid") return job.steps.result as { analyse: string; voorstel: string; pairs: number };
+    const claimed = await claimJob(supabase, job.id);
+    if (!claimed) throw new AppError("conflict", "Deze analyse loopt al.");
+    try {
+      const body = pairs
+        .map((p, i) => `<paar nr="${i + 1}" kanaal="${p.channel}" taal="${p.language}">\n<ai>\n${maskPersonalData(p.ai).text}\n</ai>\n<goedgekeurd>\n${maskPersonalData(p.approved).text}\n</goedgekeurd>\n</paar>`)
+        .join("\n\n");
+      const r = await callClaude({
+        supabase,
+        operation: "correctie_analyse",
+        schema: styleGuideAnalysisSchema,
+        system: CORRECTIONS_ANALYSIS_SYSTEM,
+        content: [
+          {
+            type: "text",
+            text: `<huidige_schrijfwijzer>\n${current?.content ?? (await defaultStyleGuideMarkdown())}\n</huidige_schrijfwijzer>\n\n<correcties>\n${body}\n</correcties>\n\nAnalyseer de correcties en stel een verbeterde schrijfwijzer op.`,
+          },
+        ],
+        jobId: job.id,
+        maxTokens: 32000,
+        effort: "high",
+      });
+      const result = { analyse: r.data.analyse, voorstel: r.data.voorstel_markdown, pairs: pairs.length };
       await updateJob(supabase, job.id, { status: "voltooid", currentStep: "voltooid", steps: { result } });
       return result;
     } catch (err) {

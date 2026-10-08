@@ -45,6 +45,7 @@ import { IssuesList } from "@/components/sources/issues-list";
 import { EditorToolbar, RichEditorContent, useRichEditor } from "./rich-editor";
 import { api, newIdempotencyKey } from "@/lib/client-api";
 import { escapeHtml, htmlToPlainText, normalizeHashtags, wordCount } from "@/lib/content/html";
+import { readability } from "@/lib/content/readability";
 import { CHANNEL_SPECS } from "@/lib/content/validators";
 import { CHANNEL_LABELS, CONTENT_SOURCE_LABELS, CONTENT_STATUS_LABELS, LANGUAGE_LABELS } from "@/lib/domain/labels";
 import { formatDateTime } from "@/lib/format";
@@ -137,6 +138,7 @@ export function SlotEditor({
 
   const plain = useMemo(() => htmlToPlainText(html), [html]);
   const words = wordCount(plain);
+  const read = useMemo(() => readability(plain, language), [plain, language]);
   const spec = CHANNEL_SPECS[channel];
   const tagList = normalizeHashtags(hashtags.split(/[\s,]+/));
   const slotIssues = issues.filter((i) => i.content_version_id && versions.some((v) => v.id === i.content_version_id));
@@ -290,6 +292,15 @@ export function SlotEditor({
             <span className={`ml-auto text-xs tabular-nums ${words && (words < spec.minWords || words > spec.maxWords) ? "text-warning" : "text-muted-foreground"}`}>
               {words} woorden · richtlijn {spec.minWords}–{spec.maxWords}
             </span>
+            {read ? (
+              <span
+                className={`text-xs tabular-nums ${read.score < 30 ? "text-warning" : "text-muted-foreground"}`}
+                title={read.longSentences.length ? `Lange zinnen:\n${read.longSentences.join("\n")}` : "Geen opvallend lange zinnen"}
+              >
+                Leesbaarheid {read.score} ({read.label}) · {read.avgWordsPerSentence} woorden/zin
+                {read.longSentences.length ? ` · ${read.longSentences.length} lange zin${read.longSentences.length === 1 ? "" : "nen"}` : ""}
+              </span>
+            ) : null}
           </div>
           <EditorToolbar editor={editor} disabled={!editable} />
           <RichEditorContent editor={editor} />

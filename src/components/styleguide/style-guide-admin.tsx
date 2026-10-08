@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MarkdownView } from "./markdown-view";
-import { activateDefaultStyleGuide, activateStyleGuide, analyseExamples, publishStyleGuide } from "@/app/(app)/schrijfwijzer/actions";
+import { activateDefaultStyleGuide, activateStyleGuide, analyseCorrections, analyseExamples, publishStyleGuide } from "@/app/(app)/schrijfwijzer/actions";
 import { newIdempotencyKey } from "@/lib/client-api";
 
 export function ActivateDefaultButton() {
@@ -99,6 +99,20 @@ export function StyleGuideEditor({ initialTitle, initialContent, aiAvailable }: 
     } else toast.error(res.error.message);
   }
 
+  async function learnFromCorrections() {
+    setBusy("correcties");
+    const res = await analyseCorrections(key);
+    setBusy(null);
+    if (res.ok) {
+      setContent(res.data.voorstel);
+      setAnalysis(res.data.analyse);
+      setNote(`Aangescherpt op basis van ${res.data.pairs} correcties door medewerkers.`);
+      setTab("bewerken");
+      setKey(newIdempotencyKey("sg"));
+      toast.success("Voorstel klaar. Beoordeel en bewerk het voordat u publiceert.");
+    } else toast.error(res.error.message);
+  }
+
   return (
     <div className="space-y-4">
       <Tabs value={tab} onValueChange={setTab}>
@@ -106,11 +120,12 @@ export function StyleGuideEditor({ initialTitle, initialContent, aiAvailable }: 
           <TabsTrigger value="bewerken">Bewerken</TabsTrigger>
           <TabsTrigger value="voorbeeld">Voorbeeld</TabsTrigger>
           <TabsTrigger value="analyseren">Voorbeelden analyseren</TabsTrigger>
+          <TabsTrigger value="correcties">Leren van correcties</TabsTrigger>
         </TabsList>
         <TabsContent value="bewerken" className="mt-4 space-y-3">
           {analysis ? (
             <div className="rounded-lg border border-primary/20 bg-accent/40 px-4 py-3 text-sm">
-              <p className="font-medium">Analyse van de voorbeelden</p>
+              <p className="font-medium">Analyse</p>
               <p className="mt-1 whitespace-pre-line text-muted-foreground">{analysis}</p>
             </div>
           ) : null}
@@ -150,6 +165,15 @@ export function StyleGuideEditor({ initialTitle, initialContent, aiAvailable }: 
           </div>
           <Button onClick={() => void analyse()} disabled={busy !== null || !aiAvailable || (!file && examples.trim().length < 500)}>
             {busy === "analyse" ? <Loader2 className="animate-spin" /> : file ? <FileUp /> : <Sparkles />} {busy === "analyse" ? "Bezig met analyseren…" : "Analyseren en voorstel maken"}
+          </Button>
+          {!aiAvailable ? <p className="text-xs text-warning">Claude is nog niet gekoppeld (ANTHROPIC_API_KEY ontbreekt).</p> : null}
+        </TabsContent>
+        <TabsContent value="correcties" className="mt-4 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Claude vergelijkt de AI-teksten van de afgelopen 90 dagen met de versies die medewerkers uiteindelijk hebben goedgekeurd, en stelt op basis van terugkerende correcties een aangescherpte schrijfwijzer voor. Persoonsgegevens worden vooraf gemaskeerd; er wordt niets automatisch gepubliceerd.
+          </p>
+          <Button onClick={() => void learnFromCorrections()} disabled={busy !== null || !aiAvailable}>
+            {busy === "correcties" ? <Loader2 className="animate-spin" /> : <Sparkles />} {busy === "correcties" ? "Bezig met analyseren…" : "Correcties analyseren"}
           </Button>
           {!aiAvailable ? <p className="text-xs text-warning">Claude is nog niet gekoppeld (ANTHROPIC_API_KEY ontbreekt).</p> : null}
         </TabsContent>

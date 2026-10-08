@@ -111,3 +111,21 @@ describe("automatische eindcontrole", () => {
     expect(diff[0].description).toContain("142 m²");
   });
 });
+
+describe("leesbaarheid", () => {
+  it("geeft korte, eenvoudige zinnen een hogere score dan lange, samengestelde zinnen", async () => {
+    const { readability } = await import("@/lib/content/readability");
+    const simple = "Je woont hier rustig. De tuin ligt op het zuiden. Er is veel licht. De keuken is nieuw. Je fietst zo naar het strand. De school is dichtbij.";
+    const hard =
+      "Deze uitzonderlijk ruim bemeten en karakteristieke herenhuiswoning, gelegen in een van de meest gewilde en bijzonder kindvriendelijke woonwijken van de gemeente, biedt een uitgebreide combinatie van woonkwaliteit, functionaliteit en representatieve uitstraling die in de huidige woningmarkt nauwelijks nog wordt aangetroffen.";
+    const a = readability(simple, "nl")!;
+    const b = readability(hard, "nl")!;
+    expect(a.score).toBeGreaterThan(b.score);
+    expect(b.longSentences).toHaveLength(1);
+    expect(a.longSentences).toHaveLength(0);
+  });
+  it("geeft geen score voor te korte teksten", async () => {
+    const { readability } = await import("@/lib/content/readability");
+    expect(readability("Te koop.", "nl")).toBeNull();
+  });
+});
