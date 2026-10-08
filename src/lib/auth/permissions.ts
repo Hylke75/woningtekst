@@ -63,6 +63,11 @@ const MATRIX: Record<AppRole, Capability[]> = {
   redacteur: ["texts.edit", "texts.regenerate_one", "texts.submit"],
 };
 
+/** De vaste rechten van een rol volgens de matrix (zonder organisatie-instellingen). */
+export function capabilitiesFor(role: AppRole): readonly Capability[] {
+  return MATRIX[role];
+}
+
 /**
  * @param approvalRoles configureerbaar per organisatie (organization_settings.approval_roles)
  */

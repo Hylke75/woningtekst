@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { requirePageSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/permissions";
+import { canUse, requirePageSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { fromDbError } from "@/lib/errors";
 import { aiConfigured } from "@/lib/env";
@@ -21,7 +20,7 @@ export default async function StyleGuidePage() {
   if (error) throw fromDbError(error);
   const versions = (data ?? []) as StyleGuideRow[];
   const active = versions.find((v) => v.is_active);
-  const isAdmin = can(session.role, "styleguide.edit");
+  const isAdmin = canUse(session, "styleguide.edit");
   const names = Object.fromEntries(colleagues.map((c) => [c.id, c.name]));
 
   return (

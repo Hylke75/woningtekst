@@ -1,7 +1,7 @@
 -- Minimale nabootsing van het Supabase-platform voor lokale migratie- en RLS-tests
 -- met een gewone PostgreSQL-server (zonder Docker). Alleen voor tests.
 -- Bootst na: rollen anon/authenticated/service_role, auth.users, auth.uid(),
--- auth.jwt() en storage.buckets/objects. RLS-gedrag is identiek aan Postgres zelf.
+-- auth.jwt(), auth.mfa_factors en storage.buckets/objects. RLS-gedrag is identiek aan Postgres zelf.
 
 do $$
 begin
@@ -19,6 +19,16 @@ create table if not exists auth.users (
   email text unique,
   email_confirmed_at timestamptz,
   raw_user_meta_data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+-- MFA-factoren (vereenvoudigd; in Supabase is status een enum auth.factor_status).
+create table if not exists auth.mfa_factors (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  friendly_name text,
+  factor_type text not null default 'totp',
+  status text not null default 'unverified',
   created_at timestamptz not null default now()
 );
 

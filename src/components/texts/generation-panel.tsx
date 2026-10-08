@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { api, newIdempotencyKey } from "@/lib/client-api";
+import { formatDateTime } from "@/lib/format";
 import { CHANNEL_LABELS, LANGUAGE_LABELS } from "@/lib/domain/labels";
 import type { Channel, Language } from "@/lib/db-types";
 import type { PublicJob } from "@/lib/pipeline/jobs";
@@ -195,7 +196,7 @@ export function GenerationPanel({
       ) : job?.status === "voltooid" ? (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
           <CheckCircle2 className="size-3.5 text-success" /> Laatste generatie voltooid
-          {job.finishedAt ? ` op ${new Date(job.finishedAt).toLocaleString("nl-NL", { dateStyle: "medium", timeStyle: "short" })}` : ""}.
+          {job.finishedAt ? ` op ${formatDateTime(job.finishedAt)}` : ""}.
         </p>
       ) : null}
 

@@ -58,19 +58,23 @@ export async function createUser(
   return { id, email };
 }
 
-/** Voert een functie uit binnen een transactie als de gegeven gebruiker; rolt altijd terug tenzij commit=true. */
+/**
+ * Voert een functie uit binnen een transactie als de gegeven gebruiker; rolt altijd terug tenzij commit=true.
+ * `aal` bepaalt het authenticatieniveau in het JWT (standaard aal2).
+ */
 export async function asUser<T>(
   db: pg.Client,
   user: TestUser | null,
   fn: (ctx: QueryCtx) => Promise<T>,
-  opts: { commit?: boolean } = {},
+  opts: { commit?: boolean; aal?: "aal1" | "aal2" } = {},
 ): Promise<T> {
   await db.query("begin");
   try {
     if (user) {
       await db.query("set local role authenticated");
       await db.query("select set_config('request.jwt.claims', $1, true)", [
-        JSON.stringify({ sub: user.id, role: "authenticated", email: user.email }),
+        // Standaard een volledig geverifieerde sessie (aal2); MFA-tests zetten aal1 expliciet.
+        JSON.stringify({ sub: user.id, role: "authenticated", email: user.email, aal: opts.aal ?? "aal2" }),
       ]);
     } else {
       await db.query("set local role anon");

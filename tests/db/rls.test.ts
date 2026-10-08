@@ -663,3 +663,71 @@ describe("aanwezigheid, dashboard en samenvatting", () => {
     });
   });
 });
+
+describe("twee-stapsverificatie (MFA)", () => {
+  async function withFactor<T>(user: TestUser, status: "verified" | "unverified", fn: () => Promise<T>) {
+    const { rows } = await db.query("insert into auth.mfa_factors (user_id, status) values ($1, $2) returning id", [user.id, status]);
+    try {
+      return await fn();
+    } finally {
+      await db.query("delete from auth.mfa_factors where id = $1", [rows[0].id]);
+    }
+  }
+
+  it("gebruiker zonder factor werkt ongewijzigd met een aal1-sessie", async () => {
+    await asUser(db, makelaarA, async ({ q }) => {
+      expect((await q("select id from public.properties where id = $1", [propertyA])).rowCount).toBe(1);
+      expect((await q("select * from public.mfa_status()")).rows[0]).toEqual({ has_verified_factor: false, current_level: "aal1" });
+    }, { aal: "aal1" });
+  });
+
+  it("gebruiker met geverifieerde factor ziet zonder aal2 geen organisatiegegevens (gestolen wachtwoord)", async () => {
+    await withFactor(makelaarA, "verified", async () => {
+      await asUser(db, makelaarA, async ({ q, deny }) => {
+        expect((await q("select * from public.mfa_status()")).rows[0]).toEqual({ has_verified_factor: true, current_level: "aal1" });
+        expect((await q("select id from public.properties")).rowCount).toBe(0);
+        expect((await q("select id from public.content_versions")).rowCount).toBe(0);
+        expect((await q("select id from storage.objects")).rowCount).toBe(0);
+        await deny("insert into public.properties (organization_id, address) values ($1, 'x')", [orgA]);
+        await deny("select * from public.save_content_version($1, 'funda', 'nl', '<p>x</p>', 'handmatig', 0)", [propertyA]);
+        // Eigen lidmaatschap blijft leesbaar zodat de app naar de verificatiestap kan sturen.
+        expect((await q("select role from public.organization_memberships where user_id = $1", [makelaarA.id])).rows[0]?.role).toBe("makelaar");
+      }, { aal: "aal1" });
+      await asUser(db, makelaarA, async ({ q }) => {
+        expect((await q("select id from public.properties where id = $1", [propertyA])).rowCount).toBe(1);
+      }, { aal: "aal2" });
+    });
+  });
+
+  it("een niet-geverifieerde factor telt niet mee", async () => {
+    await withFactor(makelaarA, "unverified", async () => {
+      await asUser(db, makelaarA, async ({ q }) => {
+        expect((await q("select id from public.properties where id = $1", [propertyA])).rowCount).toBe(1);
+      }, { aal: "aal1" });
+    });
+  });
+
+  it("admin zonder aal2 kan geen beheeracties uitvoeren, maar wel gewone acties", async () => {
+    await asUser(db, adminA, async ({ q, deny }) => {
+      const upd = await q("update public.organization_settings set ai_daily_cost_limit_eur = 99");
+      expect(upd.rowCount).toBe(0);
+      await deny("select public.admin_create_invitation('mfa-nieuw@example.test', 'redacteur')");
+      await deny("select public.publish_style_guide('x', repeat('a', 100), 'poging', true)");
+      await deny("select public.purge_property($1)", [propertyA]);
+      expect((await q("select id from public.audit_logs")).rowCount).toBe(0);
+      // Niet-beheerfuncties blijven werken.
+      expect((await q("select id from public.properties where id = $1", [propertyA])).rowCount).toBe(1);
+      await q("insert into public.properties (organization_id, address) values ($1, 'MFA-test')", [orgA]);
+    }, { aal: "aal1" });
+    await asUser(db, adminA, async ({ q }) => {
+      const upd = await q("update public.organization_settings set ai_daily_cost_limit_eur = ai_daily_cost_limit_eur");
+      expect(upd.rowCount).toBe(1);
+    }, { aal: "aal2" });
+  });
+
+  it("mfa_status is niet beschikbaar voor anonieme gebruikers", async () => {
+    await asUser(db, null, async ({ deny }) => {
+      await deny("select * from public.mfa_status()");
+    });
+  });
+});

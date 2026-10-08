@@ -10,6 +10,7 @@ Supabase PostgreSQL 17. Alle wijzigingen via versiebeheerde migraties in `supaba
 | `20261008090300_storage_views_retention.sql` | private bucket + storage-policies, `property_overview`, bewaarbeleid, bootstrap |
 | `20261008090400_patch_property.sql` | atomische autosave (`patch_property`), controlemarkering |
 | `20261008090500_email_domains.sql` | toegang op e-maildomein (`organization_email_domains`, standaardrol), aangepaste `handle_auth_user` |
+| `20261009100000_mfa.sql` | twee-stapsverificatie: `private.jwt_aal`, `private.has_verified_factor`, `private.mfa_ok`; helpers `is_member`/`has_role`/`can_approve`/`current_org_id`/`current_role` vereisen aal2 bij een geverifieerde factor, en `has_role` met uitsluitend `admin` altijd aal2; RPC `mfa_status()` |
 
 ## Entiteiten
 
@@ -67,6 +68,7 @@ organizations 1─* ai_usage_events, audit_logs
 | `log_event` | applicatie-auditregels | definer; eigen organisatie |
 | `server_ai_reserve`, `server_ai_finish`, `server_job_claim`, `server_job_update` | quota, kosten, jobs | definer; vereist `SERVER_RPC_SECRET` |
 | `cancel_generation_job` | annuleren | definer; aanvrager of admin |
+| `mfa_status` | heeft de aanroeper een geverifieerde MFA-factor + huidig `aal` | definer; alleen eigen gegevens; niet voor `anon` |
 
 ## Lokaal testen
 

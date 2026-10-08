@@ -31,6 +31,8 @@
    - **Confirm email: aan** (vereist: toegang ontstaat pas na bevestiging van het uitgenodigde adres).
    - Minimale wachtwoordlengte 12, vereiste tekens: kleine letters, hoofdletters, cijfers; leaked-password-protectie aan.
    - SMTP instellen met een eigen afzender (de standaard Supabase-mail is beperkt).
+   - **Multi-Factor: Authenticator app (TOTP) aan** (Authentication › Multi-Factor; op hosted Supabase standaard aan). Vereist voor `/beveiliging` en `/inloggen/verificatie`; administrators kunnen zonder TOTP geen beheerfuncties gebruiken (ook de database weigert admin-only bewerkingen zonder aal2-sessie). Lokaal staat dit aan in `supabase/config.toml` (`[auth.mfa.totp]`).
+   - Migratie `20261009100000_mfa.sql` toepassen vóór of tegelijk met de app-versie met MFA (de app leest `mfa_status()`). Direct daarna: iedere administrator logt in en stelt onder het gebruikersmenu › **Beveiliging** een authenticator-app in. Kwijtgeraakte app: factor verwijderen via Authentication › Users › gebruiker.
 5. Controleer **Advisors** (security en performance) in het dashboard.
 6. Sluit de verwerkersovereenkomst (DPA) af (zie PRIVACY.md).
 
