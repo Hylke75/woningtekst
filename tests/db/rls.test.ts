@@ -484,3 +484,49 @@ describe("dossier verwijderen (AVG)", () => {
     });
   });
 });
+
+describe("autosave (patch_property)", () => {
+  it("voegt JSON-velden per sleutel samen en laat andere velden intact", async () => {
+    await asUser(db, adminB, async ({ q }) => {
+      await q("select public.patch_property($1, $2, $3, null, null)", [
+        propertyB,
+        JSON.stringify({ year_built: 1905 }),
+        JSON.stringify({ kenmerken: { keuken: "Open keuken", woonkamer: "Ruim" } }),
+      ]);
+      await q("select public.patch_property($1, $2, $3, null, null)", [
+        propertyB,
+        JSON.stringify({}),
+        JSON.stringify({ kenmerken: { keuken: null, isolatie: "Dakisolatie" } }),
+      ]);
+      const { rows } = await q("select year_built, facts_json, address from public.properties where id = $1", [propertyB]);
+      expect(rows[0].year_built).toBe(1905);
+      expect(rows[0].address).toBe("Anderestraat");
+      expect(rows[0].facts_json).toEqual({ kenmerken: { woonkamer: "Ruim", isolatie: "Dakisolatie" } });
+    });
+  });
+
+  it("negeert niet-gewhiteliste kolommen zoals organization_id", async () => {
+    await asUser(db, adminB, async ({ q }) => {
+      await q("select public.patch_property($1, $2)", [propertyB, JSON.stringify({ organization_id: orgA, created_by: adminA.id })]);
+      const { rows } = await q("select organization_id, created_by from public.properties where id = $1", [propertyB]);
+      expect(rows[0]).toEqual({ organization_id: orgB, created_by: adminB.id });
+    });
+  });
+
+  it("weigert patches op woningen van een andere organisatie", async () => {
+    await asUser(db, adminA, async ({ deny }) => {
+      await deny("select public.patch_property($1, $2)", [propertyB, JSON.stringify({ address: "x" })]);
+    });
+  });
+
+  it("controlemarkering registreert de ingelogde gebruiker en vervalt bij wijziging", async () => {
+    await asUser(db, adminB, async ({ q }) => {
+      await q("select public.mark_property_checked($1, true)", [propertyB]);
+      let row = (await q("select data_checked_at, data_checked_by from public.properties where id = $1", [propertyB])).rows[0];
+      expect(row.data_checked_by).toBe(adminB.id);
+      await q("select public.patch_property($1, $2)", [propertyB, JSON.stringify({ rooms: 5 })]);
+      row = (await q("select data_checked_at, data_checked_by from public.properties where id = $1", [propertyB])).rows[0];
+      expect(row.data_checked_at).toBeNull();
+    });
+  });
+});

@@ -79,7 +79,8 @@ create table public.profiles (
 
 create table public.organization_memberships (
   organization_id uuid not null references public.organizations (id) on delete cascade,
-  user_id uuid not null references auth.users (id) on delete cascade,
+  -- Verwijst naar profiles (dat zelf 1-op-1 aan auth.users hangt) zodat de Data API kan joinen.
+  user_id uuid not null references public.profiles (id) on delete cascade,
   role public.app_role not null,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),

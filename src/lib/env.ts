@@ -1,0 +1,55 @@
+import "server-only";
+import { z } from "zod";
+
+/**
+ * Server-side configuratie. Wordt bij eerste gebruik gevalideerd; ontbrekende
+ * waarden leveren een duidelijke fout op zonder geheimen te tonen.
+ * Geheimen staan NOOIT in NEXT_PUBLIC_-variabelen.
+ */
+const boolish = z
+  .enum(["true", "false", "1", "0", ""])
+  .optional()
+  .transform((v) => v === "true" || v === "1");
+
+const serverSchema = z.object({
+  NEXT_PUBLIC_SUPABASE_URL: z.url(),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(20),
+  NEXT_PUBLIC_APP_URL: z.url().optional(),
+  SERVER_RPC_SECRET: z.string().min(32, "SERVER_RPC_SECRET moet minimaal 32 tekens bevatten"),
+  SUPABASE_SECRET_KEY: z.string().min(20).optional(),
+  ANTHROPIC_API_KEY: z.string().min(10).optional(),
+  ANTHROPIC_MODEL: z.string().min(3).default("claude-opus-5-5"),
+  ANTHROPIC_EXTRACTION_MODEL: z.string().min(3).optional(),
+  ANTHROPIC_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
+  ANTHROPIC_FALLBACKS: z.enum(["default", "off"]).default("default"),
+  ANTHROPIC_TIMEOUT_MS: z.coerce.number().int().min(10_000).max(800_000).default(240_000),
+  AI_USD_TO_EUR: z.coerce.number().positive().default(0.92),
+  AI_MOCK: boolish,
+  UPLOAD_MAX_FILE_MB: z.coerce.number().int().min(1).max(25).default(20),
+  UPLOAD_MAX_FILES_PER_PROPERTY: z.coerce.number().int().min(1).max(200).default(40),
+  SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(10).max(3600).default(120),
+  VERCEL_ENV: z.string().optional(),
+});
+
+export type ServerEnv = z.infer<typeof serverSchema>;
+
+let cached: ServerEnv | null = null;
+
+export function serverEnv(): ServerEnv {
+  if (cached) return cached;
+  const parsed = serverSchema.safeParse(process.env);
+  if (!parsed.success) {
+    const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
+    throw new Error(`Ongeldige of ontbrekende serverconfiguratie: ${fields}`);
+  }
+  if (parsed.data.AI_MOCK && parsed.data.VERCEL_ENV === "production") {
+    throw new Error("AI_MOCK mag niet actief zijn in productie");
+  }
+  cached = parsed.data;
+  return cached;
+}
+
+export function aiConfigured(): boolean {
+  const env = serverEnv();
+  return env.AI_MOCK || Boolean(env.ANTHROPIC_API_KEY);
+}
