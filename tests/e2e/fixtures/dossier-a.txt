@@ -1,0 +1,18 @@
+VERKOOPDOSSIER (FICTIEF TESTDOCUMENT)
+
+Verkoper: Jan de Testpersoon
+E-mail verkoper: verkoper@voorbeeld.test
+Telefoon: 06-12345678
+
+Adres: Teststraat 12
+Plaats: Den Haag
+Wijk: Statenkwartier
+Woningtype: Herenhuis
+Bouwjaar: 1880
+Woonoppervlakte: 186 m2
+Perceeloppervlakte: 120
+Energielabel: C
+Vraagprijs: € 1.250.000
+5 kamers, waarvan 4 slaapkamers
+Keuken: open keuken met kookeiland uit 2021
+Eigen grond

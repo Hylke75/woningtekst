@@ -53,7 +53,7 @@ export default async function PropertyOverviewPage({ params }: PageProps<"/wonin
   return (
     <div className="grid gap-8 xl:grid-cols-[1fr_360px]">
       <div className="min-w-0 space-y-6">
-        <DataCheckCard propertyId={property.id} checkedAt={property.data_checked_at} conflicts={conflicts} unverified={unverified} canEdit={canEdit} />
+        <DataCheckCard key={property.data_checked_at ?? "niet"} propertyId={property.id} checkedAt={property.data_checked_at} conflicts={conflicts} unverified={unverified} canEdit={canEdit} />
 
         <section className="rounded-xl border bg-card" aria-labelledby="kerngegevens">
           <header className="flex items-center justify-between border-b px-5 py-3">

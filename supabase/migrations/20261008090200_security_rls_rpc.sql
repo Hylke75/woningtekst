@@ -132,6 +132,11 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Vertrouwde context zonder gebruikers-JWT (bijv. ON DELETE SET NULL-cascade bij het
+  -- verwijderen van een account via Supabase Auth): geen beperkingen.
+  if tg_op = 'UPDATE' and (select auth.uid()) is null then
+    return new;
+  end if;
   if tg_op = 'INSERT' then
     new.created_by := (select auth.uid());
     new.updated_by := (select auth.uid());
@@ -187,6 +192,11 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Vertrouwde context zonder gebruikers-JWT (bijv. ON DELETE SET NULL-cascade bij het
+  -- verwijderen van een account via Supabase Auth): geen beperkingen.
+  if tg_op = 'UPDATE' and (select auth.uid()) is null then
+    return new;
+  end if;
   if tg_op = 'INSERT' then
     new.uploaded_by := (select auth.uid());
     new.created_at := now();
@@ -214,6 +224,11 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Vertrouwde context zonder gebruikers-JWT (bijv. ON DELETE SET NULL-cascade bij het
+  -- verwijderen van een account via Supabase Auth): geen beperkingen.
+  if tg_op = 'UPDATE' and (select auth.uid()) is null then
+    return new;
+  end if;
   if tg_op = 'INSERT' then
     -- Nieuwe feiten zijn nooit vooraf bevestigd, tenzij handmatig ingevoerd door de gebruiker zelf.
     if new.source_type = 'handmatig' and new.verification_status = 'bevestigd' then
@@ -302,8 +317,12 @@ begin
     end if;
     return new;
   end if;
+  -- UPDATE in vertrouwde context zonder JWT (cascade bij accountverwijdering): toegestaan.
+  if v_uid is null then
+    return new;
+  end if;
   -- UPDATE: alleen status/indiening/goedkeuring mogen wijzigen, en alleen via de RPC's hieronder
-  if current_setting('app.content_status_rpc', true) is distinct from 'on' and v_uid is not null then
+  if current_setting('app.content_status_rpc', true) is distinct from 'on' then
     raise exception 'Tekstversies zijn onveranderlijk; maak een nieuwe versie' using errcode = '42501';
   end if;
   if (to_jsonb(new) - array['status', 'submitted_by', 'submitted_at', 'approved_by', 'approved_at'])
@@ -323,6 +342,11 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Vertrouwde context zonder gebruikers-JWT (bijv. ON DELETE SET NULL-cascade bij het
+  -- verwijderen van een account via Supabase Auth): geen beperkingen.
+  if tg_op = 'UPDATE' and (select auth.uid()) is null then
+    return new;
+  end if;
   if tg_op = 'INSERT' then
     new.resolution_status := 'open';
     new.resolved_by := null;
@@ -409,7 +433,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if tg_op = 'UPDATE' and (to_jsonb(new) - 'is_active') is distinct from (to_jsonb(old) - 'is_active') then
+  if tg_op = 'UPDATE' and (select auth.uid()) is not null and (to_jsonb(new) - 'is_active') is distinct from (to_jsonb(old) - 'is_active') then
     raise exception 'Schrijfwijzerversies zijn onveranderlijk; publiceer een nieuwe versie' using errcode = '42501';
   end if;
   return new;

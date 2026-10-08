@@ -8,7 +8,8 @@ import type { AiRequest, AiResponse } from "@/lib/ai/transport";
  *
  * Testhaken (alleen in mockmodus): een woningprofiel of tekst met
  * [[MOCK_TIMEOUT]], [[MOCK_FOUT]] of [[MOCK_ONGELDIG]] simuleert respectievelijk
- * een timeout, een API-fout en een ongeldig antwoord.
+ * een timeout, een API-fout en een ongeldig antwoord; [[MOCK_TIMEOUT_EENMALIG]]
+ * simuleert een tijdelijke timeout die bij een volgende poging verdwijnt.
  */
 
 export type MockProfile = {
@@ -113,8 +114,17 @@ function languageTexts(p: MockProfile, lang: "nl" | "en") {
   };
 }
 
+const firedOnce = new Set<string>();
+
 export async function mockComplete(req: AiRequest): Promise<AiResponse> {
   const all = textOf(req) + JSON.stringify(req.mockInput ?? {});
+  if (all.includes("[[MOCK_TIMEOUT_EENMALIG]]")) {
+    const key = String((req.mockInput as { street?: string } | undefined)?.street ?? all.slice(0, 200));
+    if (!firedOnce.has(key)) {
+      firedOnce.add(key);
+      throw new AppError("ai_timeout", "Claude reageerde niet op tijd. Probeer het opnieuw.", 504, true);
+    }
+  }
   if (all.includes("[[MOCK_TIMEOUT]]")) throw new AppError("ai_timeout", "Claude reageerde niet op tijd. Probeer het opnieuw.", 504, true);
   if (all.includes("[[MOCK_FOUT]]")) throw new AppError("ai_fout", "Claude is tijdelijk niet bereikbaar. Probeer het opnieuw.", 503, true);
   if (all.includes("[[MOCK_ONGELDIG]]")) return { ...response(req, {}), text: "{ongeldig" };

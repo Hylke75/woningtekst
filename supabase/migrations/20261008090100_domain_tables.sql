@@ -165,7 +165,7 @@ create table public.property_facts (
   foreign key (extraction_job_id, organization_id) references public.generation_jobs (id, organization_id) on delete set null (extraction_job_id),
   -- Bevestiging vereist een mens.
   constraint property_facts_verified_by_human check (
-    verification_status <> 'bevestigd' or (verified_by is not null and verified_at is not null)
+    verification_status <> 'bevestigd' or verified_at is not null
   )
 );
 create index property_facts_property_field_idx on public.property_facts (property_id, field_name);
@@ -212,10 +212,11 @@ create table public.content_versions (
   constraint content_versions_seo_only_website check (
     channel = 'website' or (seo_title is null and meta_description is null and slug is null)
   ),
+  -- approved_by kan NULL worden als het account van de goedkeurder later wordt verwijderd;
+  -- het tijdstip blijft dan het bewijs van goedkeuring (en het auditlog de details).
   constraint content_versions_approval_consistent check (
-    (status = 'goedgekeurd') = (approved_by is not null and approved_at is not null)
-  ),
-  constraint content_versions_author check (generated_by is not null or edited_by is not null)
+    (status = 'goedgekeurd') = (approved_at is not null)
+  )
 );
 create index content_versions_slot_idx on public.content_versions (property_id, channel, language, version_number desc);
 create index content_versions_org_idx on public.content_versions (organization_id);

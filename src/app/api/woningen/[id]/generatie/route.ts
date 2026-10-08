@@ -6,9 +6,8 @@ import { aiConfigured } from "@/lib/env";
 import { AppError, fromDbError } from "@/lib/errors";
 import { idempotencyKeySchema, json, parseJson, route } from "@/lib/api";
 import { getActiveStyleGuide, SLOTS } from "@/lib/data/content";
-import { assertReadyForGeneration, protectedSlots } from "@/lib/pipeline/generation";
-import { createOrGetJob, hashInput, publicJob } from "@/lib/pipeline/jobs";
-import { profileForPrompt } from "@/lib/ai/prompts";
+import { assertReadyForGeneration, generationInputHash, protectedSlots } from "@/lib/pipeline/generation";
+import { createOrGetJob, publicJob } from "@/lib/pipeline/jobs";
 import type { JobRow } from "@/lib/db-types";
 
 const slotKeys = SLOTS.map((s) => s.key) as [string, ...string[]];
@@ -56,7 +55,7 @@ export const POST = route<RouteContext<"/api/woningen/[id]/generatie">>(async (r
     jobType: "volledige_generatie",
     idempotencyKey: body.idempotencyKey,
     params: { overwriteSlots: body.overwriteSlots },
-    inputHash: hashInput({ profile: profileForPrompt(property), guide: guide.id, overwrite: body.overwriteSlots }),
+    inputHash: generationInputHash(property, guide.id, body.overwriteSlots),
   });
   return json({ job: publicJob(job) }, 201);
 });

@@ -530,3 +530,29 @@ describe("autosave (patch_property)", () => {
     });
   });
 });
+
+describe("accountverwijdering (AVG)", () => {
+  it("een medewerker kan worden verwijderd zonder teksten, feiten of documenten te verliezen", async () => {
+    const tmp = await createUser(db, "tijdelijk@example.test");
+    await db.query("insert into public.organization_memberships (organization_id, user_id, role) values ($1, $2, 'makelaar')", [orgB, tmp.id]);
+    const ids = await asUser(db, tmp, async ({ q }) => {
+      const p = (await q("insert into public.properties (organization_id, address) values ($1, 'Vertrekstraat') returning id", [orgB])).rows[0].id;
+      const v = (await q("select id from public.save_content_version($1, 'funda', 'nl', '<p>x</p>', 'handmatig', 0)", [p])).rows[0].id;
+      await q("select public.set_content_status($1, 'goedgekeurd')", [v]);
+      const path = `${orgB}/${p}/${randomUUID()}.txt`;
+      await q("insert into storage.objects (bucket_id, name) values ('property-documents', $1)", [path]);
+      const d = (await q("insert into public.property_documents (property_id, organization_id, storage_path, filename, mime_type, file_size, sha256) values ($1, $2, $3, 'a.txt', 'text/plain', 1, $4) returning id", [p, orgB, path, "d".repeat(64)])).rows[0].id;
+      const f = (await q("insert into public.property_facts (property_id, organization_id, field_name, field_value, source_type, verification_status) values ($1, $2, 'rooms', '4', 'handmatig', 'bevestigd') returning id", [p, orgB])).rows[0].id;
+      return { p, v, d, f };
+    }, { commit: true });
+
+    await db.query("delete from auth.users where id = $1", [tmp.id]);
+
+    const v = (await db.query("select status, approved_by, approved_at, edited_by from public.content_versions where id = $1", [ids.v])).rows[0];
+    expect(v).toMatchObject({ status: "goedgekeurd", approved_by: null, edited_by: null });
+    expect(v.approved_at).not.toBeNull();
+    expect((await db.query("select uploaded_by from public.property_documents where id = $1", [ids.d])).rows[0].uploaded_by).toBeNull();
+    expect((await db.query("select verification_status, verified_by from public.property_facts where id = $1", [ids.f])).rows[0]).toEqual({ verification_status: "bevestigd", verified_by: null });
+    expect((await db.query("select created_by from public.properties where id = $1", [ids.p])).rows[0].created_by).toBeNull();
+  });
+});

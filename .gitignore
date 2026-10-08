@@ -51,3 +51,6 @@ next-env.d.ts
 *.docx
 !tests/fixtures/**/*.docx
 /supabase/.temp/
+/supabase/.branches/
+.shots*.mjs
+.dbg*.mjs

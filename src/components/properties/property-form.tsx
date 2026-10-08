@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Controller, useForm, type Control, type UseFormRegister } from "react-hook-form";
 import { AlertTriangle, Check, CloudOff, Info, Loader2, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -19,27 +19,51 @@ type FormValues = Record<string, string | boolean>;
 type SaveState = { kind: "idle" | "dirty" | "saving" | "saved" | "error" | "invalid"; at?: Date; message?: string };
 
 const EMPTY = "__leeg__";
+
+/** React Hook Form leest punten als geneste paden; daarom coderen we veldnamen. */
+const fname = (key: string) => key.replace(/\./g, "__");
 const AUTOSAVE_MS = 1200;
 
 function toFormDefaults(initial: Record<string, string | boolean | string[]>): FormValues {
   const out: FormValues = {};
   for (const f of FIELDS) {
     const v = initial[f.key];
-    out[f.key] = Array.isArray(v) ? v.map((t) => `#${t}`).join(" ") : (v ?? (f.kind === "boolean" ? false : ""));
+    out[fname(f.key)] = Array.isArray(v) ? v.map((t) => `#${t}`).join(" ") : (v ?? (f.kind === "boolean" ? false : ""));
   }
   return out;
 }
 
-function FieldInput({ f, register, control, disabled, invalid }: { f: FieldDef; register: UseFormRegister<FormValues>; control: Control<FormValues>; disabled: boolean; invalid: boolean }) {
-  const common = { id: f.key, disabled, "aria-invalid": invalid || undefined, "aria-describedby": f.help ? `${f.key}-help` : undefined };
+function FieldInput({
+  f,
+  register,
+  control,
+  disabled,
+  invalid,
+  initial,
+}: {
+  f: FieldDef;
+  register: UseFormRegister<FormValues>;
+  control: Control<FormValues>;
+  disabled: boolean;
+  invalid: boolean;
+  initial: string | boolean | undefined;
+}) {
+  // defaultValue zorgt dat de waarde al in de server-HTML staat (geen race vóór hydratie).
+  const common = {
+    id: f.key,
+    disabled,
+    defaultValue: typeof initial === "string" ? initial : undefined,
+    "aria-invalid": invalid || undefined,
+    "aria-describedby": f.help ? `${f.key}-help` : undefined,
+  };
   switch (f.kind) {
     case "textarea":
-      return <Textarea {...common} {...register(f.key)} rows={f.key === "kenmerken.indeling" ? 6 : 3} className="bg-card" placeholder={f.placeholder} />;
+      return <Textarea {...common} {...register(fname(f.key))} rows={f.key === "kenmerken.indeling" ? 6 : 3} className="bg-card" placeholder={f.placeholder} />;
     case "select":
       return (
         <Controller
           control={control}
-          name={f.key}
+          name={fname(f.key)}
           render={({ field }) => (
             <Select
               value={(field.value as string) || EMPTY}
@@ -65,7 +89,7 @@ function FieldInput({ f, register, control, disabled, invalid }: { f: FieldDef; 
       return (
         <Controller
           control={control}
-          name={f.key}
+          name={fname(f.key)}
           render={({ field }) => (
             <div className="flex h-9 items-center gap-2">
               <Switch id={f.key} checked={Boolean(field.value)} onCheckedChange={field.onChange} disabled={disabled} />
@@ -79,7 +103,7 @@ function FieldInput({ f, register, control, disabled, invalid }: { f: FieldDef; 
       return (
         <div className="relative">
           {f.unit === "€" ? <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">€</span> : null}
-          <Input {...common} {...register(f.key)} inputMode="numeric" className={cn("bg-card", f.unit === "€" && "pl-7", f.unit && f.unit !== "€" && "pr-10")} />
+          <Input {...common} {...register(fname(f.key))} inputMode="numeric" className={cn("bg-card", f.unit === "€" && "pl-7", f.unit && f.unit !== "€" && "pr-10")} />
           {f.unit && f.unit !== "€" ? (
             <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted-foreground">{f.unit}</span>
           ) : null}
@@ -87,7 +111,7 @@ function FieldInput({ f, register, control, disabled, invalid }: { f: FieldDef; 
       );
     default: {
       const type = f.kind === "url" ? "url" : f.kind === "email" ? "email" : f.kind === "tel" ? "tel" : f.kind === "date" ? "date" : "text";
-      return <Input {...common} {...register(f.key)} type={type} className="bg-card" placeholder={f.placeholder} autoComplete="off" />;
+      return <Input {...common} {...register(fname(f.key))} type={type} className="bg-card" placeholder={f.placeholder} autoComplete="off" />;
     }
   }
 }
@@ -96,6 +120,12 @@ function serialize(f: FieldDef, value: string | boolean): unknown {
   if (f.kind === "boolean") return Boolean(value);
   if (f.kind === "tags") return String(value ?? "");
   return typeof value === "string" ? value : String(value ?? "");
+}
+
+const noopSubscribe = () => () => {};
+/** false tijdens server-rendering en hydratie, daarna true. */
+function useHydrated() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
 }
 
 export function PropertyForm({
@@ -112,6 +142,8 @@ export function PropertyForm({
   documentsSlot: React.ReactNode;
 }) {
   const defaults = useMemo(() => toFormDefaults(initialValues), [initialValues]);
+  // Velden pas bewerkbaar na hydratie, zodat vroege invoer niet verloren gaat of wordt samengevoegd.
+  const hydrated = useHydrated();
   const { register, control, subscribe, getValues } = useForm<FormValues>({ defaultValues: defaults });
   const lastSaved = useRef<FormValues>({ ...defaults });
   const [state, setState] = useState<SaveState>({ kind: "idle" });
@@ -131,8 +163,9 @@ export function PropertyForm({
     const patch: Record<string, unknown> = {};
     const nextErrors: Record<string, string> = {};
     for (const f of FIELDS) {
-      if (current[f.key] === lastSaved.current[f.key]) continue;
-      const value = serialize(f, current[f.key]);
+      const name = fname(f.key);
+      if (current[name] === lastSaved.current[name]) continue;
+      const value = serialize(f, current[name]);
       const check = fieldValueSchema(f.key).safeParse(value);
       if (!check.success) {
         nextErrors[f.key] = check.error.issues[0]?.message ?? "Ongeldige waarde";
@@ -150,7 +183,7 @@ export function PropertyForm({
     const result = await savePropertyFields(propertyId, patch).catch(() => null);
     saving.current = false;
     if (result?.ok) {
-      for (const key of Object.keys(patch)) lastSaved.current[key] = current[key];
+      for (const key of Object.keys(patch)) lastSaved.current[fname(key)] = current[fname(key)];
       setState(Object.keys(nextErrors).length ? { kind: "invalid", message: "Niet alle velden opgeslagen: controleer de gemarkeerde velden" } : { kind: "saved", at: new Date() });
     } else {
       setState({ kind: "error", message: result && !result.ok ? result.error.message : "Geen verbinding. Wijzigingen worden opnieuw geprobeerd." });
@@ -181,7 +214,7 @@ export function PropertyForm({
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       const current = getValues();
-      const unsaved = FIELDS.some((f) => current[f.key] !== lastSaved.current[f.key]);
+      const unsaved = FIELDS.some((f) => current[fname(f.key)] !== lastSaved.current[fname(f.key)]);
       if (unsaved) {
         e.preventDefault();
         void flush();
@@ -235,11 +268,12 @@ export function PropertyForm({
                   documentsSlot
                 ) : (
                   <SectionFields
+                    defaults={defaults}
                     propertyId={propertyId}
                     section={s.id}
                     register={register}
                     control={control}
-                    disabled={!canEdit}
+                    disabled={!canEdit || !hydrated}
                     errors={errors}
                     factHints={factHints}
                   />
@@ -254,6 +288,7 @@ export function PropertyForm({
 }
 
 function SectionFields({
+  defaults,
   propertyId,
   section,
   register,
@@ -262,6 +297,7 @@ function SectionFields({
   errors,
   factHints,
 }: {
+  defaults: FormValues;
   propertyId: string;
   section: SectionId;
   register: UseFormRegister<FormValues>;
@@ -301,7 +337,7 @@ function SectionFields({
                 </span>
               ) : null}
             </div>
-            <FieldInput f={f} register={register} control={control} disabled={disabled} invalid={Boolean(errors[f.key])} />
+            <FieldInput f={f} register={register} control={control} disabled={disabled} invalid={Boolean(errors[f.key])} initial={defaults[fname(f.key)]} />
             {errors[f.key] ? (
               <p className="text-xs text-destructive" role="alert">
                 {errors[f.key]}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -19,12 +19,18 @@ export function PropertyFilters({ showArchived = false }: { showArchived?: boole
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [q, setQ] = useState(params.get("q") ?? "");
+  // Nog niet doorgevoerde navigatie: zo kan een vertraagde zoekactie een net gekozen filter niet terugdraaien.
+  const pendingQuery = useRef<string | null>(null);
+  useEffect(() => {
+    pendingQuery.current = null;
+  }, [params]);
 
   function update(key: string, value: string | null) {
-    const next = new URLSearchParams(params.toString());
+    const next = new URLSearchParams(pendingQuery.current ?? window.location.search);
     if (value && value !== ALL) next.set(key, value);
     else next.delete(key);
     next.delete("page");
+    pendingQuery.current = next.toString();
     startTransition(() => router.replace(`${pathname}?${next.toString()}`, { scroll: false }));
   }
 

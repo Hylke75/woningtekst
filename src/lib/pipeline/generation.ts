@@ -28,7 +28,7 @@ import { AppError, fromDbError } from "@/lib/errors";
 import type { ServerSupabase } from "@/lib/supabase/server";
 import type { Channel, JobRow, Language, PropertyRow, StyleGuideRow } from "@/lib/db-types";
 import { SLOTS, getStyleGuide, isProtected, latestVersions, type SlotKey } from "@/lib/data/content";
-import { claimJob, failJob, getJob, updateJob } from "@/lib/pipeline/jobs";
+import { claimJob, failJob, getJob, hashInput, updateJob } from "@/lib/pipeline/jobs";
 
 export const GENERATION_STEPS = ["analyse", "nederlands", "engels", "seo", "controle", "opslaan"] as const;
 export type GenerationStep = (typeof GENERATION_STEPS)[number];
@@ -62,6 +62,11 @@ export function mockProfile(p: PropertyRow): MockProfile {
     bedrooms: p.bedrooms,
     neighbourhood: p.neighbourhood,
   };
+}
+
+/** Vingerafdruk van alle invoer van een volledige generatie. */
+export function generationInputHash(property: PropertyRow, styleGuideId: string, overwriteSlots: string[]) {
+  return hashInput({ profile: profileForPrompt(property), guide: styleGuideId, overwrite: overwriteSlots });
 }
 
 /** Voorwaarden vóór een (betaalde) volledige generatie. */
@@ -173,6 +178,10 @@ export async function runNextGenerationStep(supabase: ServerSupabase, jobId: str
     if (error) throw fromDbError(error);
     const property = propertyData as PropertyRow;
     if (!claimed.style_guide_id) throw new AppError("configuratie", "Er is geen actieve schrijfwijzer.");
+    // Alle stappen moeten op dezelfde gegevens gebaseerd zijn (NL en EN inhoudelijk gelijk).
+    if (generationInputHash(property, claimed.style_guide_id, (claimed.params?.overwriteSlots as string[] | undefined) ?? []) !== claimed.input_hash) {
+      throw new AppError("conflict", "De woninggegevens of de schrijfwijzer zijn gewijzigd sinds de start. Start de generatie opnieuw.");
+    }
     const guide = await getStyleGuide(supabase, claimed.style_guide_id);
     const guideText = guideForPrompt(guide.content);
     const profile = profileForPrompt(property);
