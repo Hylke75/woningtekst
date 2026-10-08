@@ -9,8 +9,10 @@ import { serverEnv } from "@/lib/env";
  * vallen onder Row Level Security.
  */
 export async function createClient() {
-  const env = serverEnv();
+  // Eerst cookies(): markeert de route als dynamisch vóórdat de configuratie
+  // wordt gelezen, zodat prerenderen tijdens de build nooit op env-validatie stuit.
   const cookieStore = await cookies();
+  const env = serverEnv();
   return createServerClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
     cookies: {
       getAll() {
