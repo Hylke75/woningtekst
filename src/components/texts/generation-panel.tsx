@@ -66,12 +66,18 @@ export function GenerationPanel({
   useEffect(() => () => abort.current?.abort(), []);
 
   const drive = useCallback(
-    async (jobId: string) => {
+    async (jobId: string, resume = false) => {
       setRunning(true);
+      let explicitResume = resume;
       abort.current = new AbortController();
       const until = Date.now() + MAX_FOLLOW_MS;
       while (Date.now() < until) {
-        const res = await api<{ job: PublicJob }>(`/api/jobs/${jobId}/verder`, { method: "POST", body: {}, signal: abort.current.signal });
+        const res = await api<{ job: PublicJob }>(`/api/jobs/${jobId}/verder`, {
+          method: "POST",
+          body: explicitResume ? { hervatten: true } : {},
+          signal: abort.current.signal,
+        });
+        explicitResume = false;
         if (!res.ok) {
           if (res.error.code === "afgebroken") break;
           setJob((j) => (j ? { ...j, status: "mislukt", errorMessage: res.error.message } : j));
@@ -177,7 +183,7 @@ export function GenerationPanel({
               <p className="flex-1 text-sm">
                 {job.status === "mislukt" ? (job.errorMessage ?? "De generatie is gestopt door een fout.") : "De generatie is onderbroken."} Reeds voltooide stappen blijven bewaard.
               </p>
-              <Button size="sm" onClick={() => void drive(job.id)}>
+              <Button size="sm" onClick={() => void drive(job.id, true)}>
                 <RotateCcw /> Hervatten
               </Button>
               <Button size="sm" variant="ghost" onClick={() => void cancel()}>
