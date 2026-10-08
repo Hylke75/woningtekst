@@ -20,14 +20,14 @@ Dit document beschrijft de maatregelen, de uitgevoerde tests en de bevindingen. 
 | Veilige uploads | Private bucket; signed upload-URL voor vooraf bepaald pad; controle op werkelijke inhoud (magic bytes), type, grootte en aantal; bucket-limieten; ongeldige bestanden direct verwijderd; bestandsnamen opgeschoond | upload-routes, `validate.ts` |
 | Geraden URL's | Bucket is privé; storage-policies controleren organisatie én woning in het pad; downloads alleen via kortlevende signed URL na autorisatie (120 s) | migratie 4 |
 | Inputvalidatie | Zod op alle server-invoer (velden, API-bodies, AI-output), database-constraints als tweede laag | |
-| XSS | Teksten worden bij opslaan én bij weergave gesaneerd (whitelist h2/h3/p/ul/ol/li/strong/em/br); AI-tekst wordt ge-escaped bij HTML-opbouw; React escapet overige output; CSP | `html.ts`, `next.config.ts` |
+| XSS | Teksten worden bij opslaan én bij weergave gesaneerd (whitelist h2/h3/p/ul/ol/li/strong/em/br); AI-tekst wordt ge-escaped bij HTML-opbouw; React escapet overige output; CSP met per-request nonce | `html.ts`, `proxy.ts`, `lib/csp.ts` |
 | CSRF | Server Actions: ingebouwde origin-controle van Next.js. JSON-routes: verplichte `Origin` gelijk aan host + `Sec-Fetch-Site`; cookies SameSite=Lax | `src/lib/api.ts` |
 | Rate limiting en misbruik | Per gebruiker per minuut en per dag, per organisatie dag- en maandbudget (configureerbaar); Supabase Auth heeft eigen inlog-rate limits | `organization_settings` |
 | Foutmeldingen | Vaste Nederlandse meldingen, geen stacktraces, SQL of sleutels; database-fouten vertaald | `src/lib/errors.ts` |
 | Audit logging | Triggers op woningen, documenten, feiten, teksten, schrijfwijzer, lidmaatschappen, uitnodigingen, instellingen, jobs; daarnaast kopiëren, downloaden en definitief verwijderen. Append-only, alleen admins lezen | `private.audit_row` |
 | Prompt injection | Vaste systeeminstructies met databegrenzing; documenten/profiel uitsluitend als gemarkeerde data in het user-bericht; output via JSON Schema + Zod (geen vrije acties); extractie alleen naar toegestane velden; AI-feiten nooit "bevestigd" | `prompts.ts`, `extraction.ts` |
 | Open redirects | Alleen relatieve interne paden als doorstuurdoel | `redirect.ts` |
-| Security headers | CSP, HSTS, X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy, COOP; `poweredByHeader` uit; `Cache-Control: private, no-store` | `next.config.ts`, `proxy.ts` |
+| Security headers | CSP (nonce, via proxy), HSTS, X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy, COOP; `poweredByHeader` uit; `Cache-Control: private, no-store` | `next.config.ts`, `proxy.ts` |
 
 ## Uitgevoerde verplichte securitytests
 
@@ -66,7 +66,7 @@ Totaal bij oplevering: 47 database-/RLS-tests, 63 unit-tests, 7 integratietests,
 ## Geaccepteerde restrisico's
 
 - `npm audit --omit=dev`: 3 × moderate in `sprintf-js` via `argparse`, uitsluitend gebruikt door het command-line-programma van `mammoth` (`mammoth/bin`), niet door de bibliotheekfunctie `extractRawText`. Niet bereikbaar vanuit de applicatie. De `shadcn`-CLI-meldingen (`braces`/`micromatch`) betreffen alleen build-tijd (devDependency).
-- CSP bevat `'unsafe-inline'` voor scripts en stijlen (vereist door Next.js zonder nonce-middleware). Mitigatie: strikte sanitisatie, geen `eval`, `frame-ancestors 'none'`.
+- CSP voor scripts is strikt: `script-src 'self' 'nonce-…' 'strict-dynamic'` met een per verzoek in `src/proxy.ts` gegenereerde nonce (geen `'unsafe-inline'`, geen `'unsafe-eval'` in productie). Alle pagina's renderen daarvoor dynamisch (`connection()` in de root-layout). Restrisico: `style-src` bevat nog `'unsafe-inline'`, omdat Radix UI, sonner en TipTap inline stijlen zetten die niet met een nonce kunnen worden toegestaan. Inline CSS kan geen code uitvoeren; mitigatie: strikte HTML-sanitisatie, `frame-ancestors 'none'`.
 - PII-maskering is best effort (patronen). Mitigatie: privacycontrole op gegenereerde teksten, menselijke goedkeuring, geen opslag van ruwe documenttekst buiten de private bucket.
 - De rol- en quotacontrole op AI-aanroepen gebruikt het JWT van de gebruiker; een ingelogde gebruiker met geldige rol kan binnen zijn quota AI-kosten maken. Dat is de bedoelde functionaliteit; limieten zijn configureerbaar.
 
