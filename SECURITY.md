@@ -8,6 +8,7 @@ Dit document beschrijft de maatregelen, de uitgevoerde tests en de bevindingen. 
 |---|---|---|
 | RLS op alle tabellen, default deny | RLS aan op alle 14 tabellen in `public`; `anon` heeft geen rechten; `authenticated` krijgt alleen expliciete tabelrechten; zonder policy geen toegang | `supabase/migrations/…_security_rls_rpc.sql` |
 | Organisatie-isolatie | Policies op `organization_id` + lidmaatschap; samengestelde FK `(property_id, organization_id)` op alle kindtabellen; één organisatie per gebruiker | migraties 1–3 |
+| Toegang op domein | Alleen na bevestiging van een adres op een door een admin gekoppeld domein; publieke maildomeinen geweigerd; domein aan één organisatie; uitnodiging gaat voor (6 tests in `rls.test.ts` › toegang op e-maildomein) | migratie 6 |
 | Rolgebaseerde toegang | Rollen alleen in `organization_memberships`; policies en RPC's controleren `private.has_role` / `private.can_approve`; UI en server actions controleren dezelfde matrix (`src/lib/auth/permissions.ts`) | |
 | Alle mutaties server-side geautoriseerd | Server Actions en API-routes roepen `requireSession(capability)` aan; de database dwingt daarnaast RLS/guards af | `src/lib/auth/session.ts` |
 | Mass assignment | Guard-triggers zetten `organization_id`, `created_by`, `uploaded_by`, versienummers, goedkeurders e.d. server-side; `patch_property` gebruikt een kolom-whitelist; Zod `strictObject` weigert onbekende sleutels | migratie 3 en 5, `property-fields.ts` |
@@ -45,7 +46,7 @@ Dit document beschrijft de maatregelen, de uitgevoerde tests en de bevindingen. 
 
 Daarnaast: anon-toegang, onveranderlijke tekstversies en auditlog, versieconflicten, bevestiging van feiten door mensen, documentpaden, rate limit, dagbudget, atomische job-claim, idempotency, CSRF (vreemde origin → 403), onvolledige/ongeldige invoer, foutmeldingen zonder interne details, XSS-sanitisatie, accountverwijdering zonder dataverlies.
 
-Totaal bij oplevering: 41 database-/RLS-tests, 63 unit-tests, 7 integratietests, 22 E2E-tests — allemaal geslaagd. De live-test tegen de Claude API is niet uitgevoerd (geen API-sleutel beschikbaar; zie DEPLOYMENT.md).
+Totaal bij oplevering: 47 database-/RLS-tests, 63 unit-tests, 7 integratietests, 22 E2E-tests — allemaal geslaagd. De live-test tegen de Claude API is niet uitgevoerd (geen API-sleutel beschikbaar; zie DEPLOYMENT.md).
 
 ## Controle van routes, actions en databasefuncties
 

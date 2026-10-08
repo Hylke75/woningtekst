@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, MailPlus, X } from "lucide-react";
+import { Globe, Loader2, MailPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,18 +11,21 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/common/status-badge";
-import { inviteUser, revokeInvitation, updateMember } from "@/app/(app)/gebruikers/actions";
+import { inviteUser, removeEmailDomain, revokeInvitation, setEmailDomain, updateMember } from "@/app/(app)/gebruikers/actions";
 import { ROLE_LABELS, type AppRole } from "@/lib/auth/permissions";
 import { formatDate } from "@/lib/format";
 
 export type MemberView = { userId: string; name: string; email: string; role: AppRole; isActive: boolean; isSelf: boolean };
 export type InvitationView = { id: string; email: string; role: AppRole; createdAt: string; expiresAt: string };
+export type DomainView = { domain: string; role: AppRole };
 
-export function UsersAdmin({ members, invitations }: { members: MemberView[]; invitations: InvitationView[] }) {
+export function UsersAdmin({ members, invitations, domains }: { members: MemberView[]; invitations: InvitationView[]; domains: DomainView[] }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<AppRole>("makelaar");
   const [busy, setBusy] = useState<string | null>(null);
+  const [domain, setDomain] = useState("");
+  const [domainRole, setDomainRole] = useState<AppRole>("redacteur");
   const [lastInvite, setLastInvite] = useState<{ email: string; emailSent: boolean; registerUrl: string } | null>(null);
   const [, startTransition] = useTransition();
   const refresh = () => startTransition(() => router.refresh());
@@ -81,6 +84,75 @@ export function UsersAdmin({ members, invitations }: { members: MemberView[]; in
         <p className="mt-3 text-xs text-muted-foreground">
           Rollen: administrator beheert gebruikers, schrijfwijzer en instellingen; makelaar maakt woningen, genereert en keurt teksten goed; redacteur bekijkt gegevens, schrijft en bewerkt teksten en biedt ze ter goedkeuring aan.
         </p>
+      </section>
+
+      <section className="rounded-xl border bg-card p-5" aria-labelledby="domeinen">
+        <h2 id="domeinen" className="text-base font-semibold">
+          Toegang op e-maildomein
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Iedereen die zich registreert en een adres op een gekoppeld domein bevestigt, krijgt automatisch toegang met de gekozen rol. Een persoonlijke uitnodiging gaat altijd voor. Publieke domeinen zoals gmail.com zijn niet toegestaan.
+        </p>
+        <form
+          className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy("domain");
+            const res = await setEmailDomain({ domain, role: domainRole });
+            setBusy(null);
+            if (res.ok) {
+              setDomain("");
+              toast.success("Domein gekoppeld.");
+              refresh();
+            } else toast.error(res.error.message);
+          }}
+        >
+          <div className="flex-1 space-y-1.5">
+            <Label htmlFor="domein">Domein</Label>
+            <Input id="domein" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="korffdegidts.nl" required className="bg-card" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="domein-rol">Standaardrol</Label>
+            <Select value={domainRole} onValueChange={(v) => setDomainRole(v as AppRole)}>
+              <SelectTrigger id="domein-rol" className="w-full bg-card sm:w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(ROLE_LABELS) as AppRole[]).map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button type="submit" variant="outline" disabled={busy !== null}>
+            {busy === "domain" ? <Loader2 className="animate-spin" /> : <Globe />} Koppelen
+          </Button>
+        </form>
+        {domains.length > 0 ? (
+          <ul className="mt-4 divide-y rounded-lg border">
+            {domains.map((d) => (
+              <li key={d.domain} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                <span className="flex-1 font-medium">@{d.domain}</span>
+                <StatusBadge>{ROLE_LABELS[d.role]}</StatusBadge>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={`Domein ${d.domain} ontkoppelen`}
+                  onClick={async () => {
+                    const res = await removeEmailDomain(d.domain);
+                    if (res.ok) toast.success("Domein ontkoppeld. Bestaande medewerkers behouden hun toegang.");
+                    else toast.error(res.error.message);
+                    refresh();
+                  }}
+                >
+                  <X />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </section>
 
       <section aria-labelledby="leden" className="space-y-3">

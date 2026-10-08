@@ -70,3 +70,28 @@ export async function updateMember(input: { userId: string; role: string; isActi
     return undefined;
   });
 }
+
+export async function setEmailDomain(input: { domain: string; role: string }): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireSession("users.manage");
+    const parsed = z.object({ domain: z.string().trim().min(3).max(253), role: roleSchema }).safeParse(input);
+    if (!parsed.success) throw new AppError("ongeldige_invoer", "Vul een geldig domein in, bijvoorbeeld korffdegidts.nl.");
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("admin_set_email_domain", { p_domain: parsed.data.domain, p_role: parsed.data.role });
+    if (error) throw fromDbError(error);
+    revalidatePath("/gebruikers");
+    return undefined;
+  });
+}
+
+export async function removeEmailDomain(domain: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireSession("users.manage");
+    if (!z.string().min(3).max(253).safeParse(domain).success) throw new AppError("niet_gevonden", "Domein niet gevonden.");
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("admin_remove_email_domain", { p_domain: domain });
+    if (error) throw fromDbError(error);
+    revalidatePath("/gebruikers");
+    return undefined;
+  });
+}

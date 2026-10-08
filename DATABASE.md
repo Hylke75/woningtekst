@@ -9,6 +9,7 @@ Supabase PostgreSQL 17. Alle wijzigingen via versiebeheerde migraties in `supaba
 | `20261008090200_security_rls_rpc.sql` | server-geheim, audit-triggers, guard-triggers, auth-koppeling, RLS-policies, rechten, RPC's |
 | `20261008090300_storage_views_retention.sql` | private bucket + storage-policies, `property_overview`, bewaarbeleid, bootstrap |
 | `20261008090400_patch_property.sql` | atomische autosave (`patch_property`), controlemarkering |
+| `20261008090500_email_domains.sql` | toegang op e-maildomein (`organization_email_domains`, standaardrol), aangepaste `handle_auth_user` |
 
 ## Entiteiten
 
@@ -24,6 +25,7 @@ organizations 1─* properties 1─* property_documents 1─* property_facts
 organizations 1─* ai_usage_events, audit_logs
 ```
 
+- **Toegang**: via persoonlijke uitnodiging of via een gekoppeld e-maildomein (standaardrol per domein). Lidmaatschap ontstaat pas na bevestiging van het e-mailadres; een uitnodiging gaat voor de domeinregel. Ontkoppelen van een domein laat bestaande leden staan.
 - **Gezaghebbende bron voor rollen**: `organization_memberships(organization_id, user_id, role, is_active)`, uniek per gebruiker. `profiles` bevat bewust géén `organization_id`/`role` (voorkomt inconsistentie); de applicatie leest de rol altijd uit het lidmaatschap.
 - **Woningen**: sectie 1 in kolommen; secties 2–4 in `facts_json` (`kenmerken`, `locatie`, `juridisch`), sectie 5 in `positioning_json`, sectie 6 (incl. publicatielinks, contact, hashtags, prijs op social) in `publication_json`. Validatie in de applicatie (Zod, `src/lib/domain/property-fields.ts`), groottelimieten en types in de database.
 - **Feiten** (`property_facts`): waarde, bron (document/geplakte tekst/handmatig), bronlocatie, citaat, betrouwbaarheid, status (onbevestigd/bevestigd/conflict/afgewezen), wie/wanneer bevestigd.
@@ -39,6 +41,7 @@ organizations 1─* ai_usage_events, audit_logs
 | profiles | zichzelf + collega's | eigen naam |
 | memberships | leden | alleen via `admin_update_member` / uitnodiging |
 | invitations | admin | via `admin_create_invitation` / `admin_revoke_invitation` |
+| organization_email_domains | admin | via `admin_set_email_domain` / `admin_remove_email_domain` |
 | style_guides | leden | via `publish_style_guide` / `activate_style_guide` (admin) |
 | properties | leden | admin, makelaar (insert/update; archiveren alleen admin; verwijderen via `purge_property`) |
 | property_documents, property_facts | leden | admin, makelaar |
@@ -58,6 +61,7 @@ organizations 1─* ai_usage_events, audit_logs
 | `patch_property`, `mark_property_checked` | autosave, controle | invoker (RLS), kolom-whitelist |
 | `publish_style_guide`, `activate_style_guide` | schrijfwijzerversies | definer; admin |
 | `admin_create_invitation`, `admin_revoke_invitation`, `admin_update_member` | gebruikersbeheer | definer; admin; niet zichzelf; ≥1 admin |
+| `admin_set_email_domain`, `admin_remove_email_domain` | toegang op domein | definer; admin; geen publieke maildomeinen; domein hoort bij één organisatie |
 | `purge_property` | dossier definitief verwijderen | definer; admin; eerst documenten |
 | `retention_candidates` | bewaarbeleid | invoker; admin |
 | `log_event` | applicatie-auditregels | definer; eigen organisatie |

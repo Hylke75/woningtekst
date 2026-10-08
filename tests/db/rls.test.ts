@@ -556,3 +556,64 @@ describe("accountverwijdering (AVG)", () => {
     expect((await db.query("select created_by from public.properties where id = $1", [ids.p])).rows[0].created_by).toBeNull();
   });
 });
+
+describe("toegang op e-maildomein", () => {
+  it("alleen een admin kan een domein koppelen; publieke maildomeinen worden geweigerd", async () => {
+    await asUser(db, redacteurA, async ({ deny }) => {
+      await deny("select public.admin_set_email_domain('kantoor-a.test', 'redacteur')");
+    });
+    await asUser(db, adminA, async ({ deny }) => {
+      expect(await deny("select public.admin_set_email_domain('gmail.com', 'redacteur')")).toMatch(/publiek maildomein/);
+      expect(await deny("select public.admin_set_email_domain('geen domein', 'redacteur')")).toMatch(/Ongeldig domein/);
+    });
+    await asUser(db, adminA, async ({ q }) => {
+      const row = (await q("select * from public.admin_set_email_domain('@Kantoor-A.test', 'makelaar')")).rows[0];
+      expect(row.domain).toBe("kantoor-a.test");
+      expect(row.organization_id).toBe(orgA);
+    }, { commit: true });
+  });
+
+  it("een domein van een andere organisatie kan niet worden overgenomen en is voor hen onzichtbaar", async () => {
+    await asUser(db, adminB, async ({ deny, q }) => {
+      expect(await deny("select public.admin_set_email_domain('kantoor-a.test', 'admin')")).toMatch(/andere organisatie/);
+      expect((await q("select * from public.organization_email_domains")).rows).toHaveLength(0);
+      await q("select public.admin_remove_email_domain('kantoor-a.test')");
+    }, { commit: true });
+    const { rows } = await db.query("select default_role from public.organization_email_domains where domain = 'kantoor-a.test'");
+    expect(rows[0]?.default_role).toBe("makelaar");
+  });
+
+  it("koppelt pas na bevestiging van het e-mailadres, met de standaardrol van het domein", async () => {
+    const u = await createUser(db, "nieuw@kantoor-a.test", { confirmed: false });
+    expect((await db.query("select 1 from public.organization_memberships where user_id = $1", [u.id])).rows).toHaveLength(0);
+    await db.query("update auth.users set email_confirmed_at = now() where id = $1", [u.id]);
+    const { rows } = await db.query("select organization_id, role from public.organization_memberships where user_id = $1", [u.id]);
+    expect(rows[0]).toEqual({ organization_id: orgA, role: "makelaar" });
+  });
+
+  it("een persoonlijke uitnodiging gaat voor de domeinregel", async () => {
+    await invite(orgA, "chef@kantoor-a.test", "admin");
+    const u = await createUser(db, "chef@kantoor-a.test");
+    const { rows } = await db.query("select role from public.organization_memberships where user_id = $1", [u.id]);
+    expect(rows[0]?.role).toBe("admin");
+  });
+
+  it("geeft andere domeinen (ook subdomeinen) geen toegang en koppelt bestaande accounts bij toevoegen", async () => {
+    const sub = await createUser(db, "x@sub.kantoor-a.test");
+    const later = await createUser(db, "y@later-a.test");
+    expect((await db.query("select 1 from public.organization_memberships where user_id = any($1)", [[sub.id, later.id]])).rows).toHaveLength(0);
+    await asUser(db, adminA, async ({ q }) => {
+      await q("select public.admin_set_email_domain('later-a.test', 'redacteur')");
+    }, { commit: true });
+    const { rows } = await db.query("select role from public.organization_memberships where user_id = $1", [later.id]);
+    expect(rows[0]?.role).toBe("redacteur");
+  });
+
+  it("na verwijderen van het domein krijgen nieuwe accounts geen toegang meer", async () => {
+    await asUser(db, adminA, async ({ q }) => {
+      await q("select public.admin_remove_email_domain('later-a.test')");
+    }, { commit: true });
+    const u = await createUser(db, "z@later-a.test");
+    expect((await db.query("select 1 from public.organization_memberships where user_id = $1", [u.id])).rows).toHaveLength(0);
+  });
+});
