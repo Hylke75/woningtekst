@@ -75,7 +75,19 @@ organizations 1─* ai_usage_events, audit_logs
 
 ## Typen
 
-`src/lib/db-types.ts` bevat rijtypen die met de migraties overeenkomen. Na koppeling van het productieproject kunnen gegenereerde typen worden toegevoegd met `npx supabase gen types typescript --project-id <ref>`.
+`src/lib/db-types.ts` bevat handgeschreven rijtypen die met de migraties overeenkomen; de applicatie gebruikt (nog) alleen deze.
+
+`src/lib/database.types.ts` is **gegenereerd** uit de lokale stack en wordt niet met de hand bewerkt:
+
+```bash
+npx supabase start …        # lokale stack met alle migraties
+npm run db:types            # = npx supabase gen types typescript --local > src/lib/database.types.ts
+```
+
+- Na elke nieuwe migratie: `npm run db:types` draaien en het bestand meecommitten. De CI-job `e2e` genereert de typen opnieuw tegen de verse lokale stack en faalt als `git diff --exit-code src/lib/database.types.ts` een verschil geeft.
+- De uitvoer hangt af van de Supabase CLI-versie. CI gebruikt een vaste versie (`supabase/setup-cli` in `.github/workflows/ci.yml`, nu 2.120.0); gebruik lokaal dezelfde versie (`npx supabase --version`) en verhoog beide tegelijk.
+- Het bestand is bewust ongeformatteerd (letterlijke CLI-uitvoer), zodat de CI-vergelijking exact is.
+- De typen zijn nog **niet** aan de Supabase-clients (`src/lib/supabase/*`) gekoppeld; dat is een aparte stap waarbij `db-types.ts` kan vervallen.
 
 ## Bootstrap productie
 

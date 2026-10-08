@@ -100,9 +100,18 @@ jobs:
       - run: npm ci
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Vaste versie: de uitvoer van `supabase gen types` verschilt per CLI-versie.
+          # Bij een update ook `npm run db:types` draaien en het resultaat committen.
+          version: 2.120.0
       - name: Supabase starten (migraties worden automatisch toegepast)
         run: supabase start -x studio,realtime,edge-runtime,logflare,vector,imgproxy,supavisor,postgres-meta,mailpit
+      - name: Databasetypes actueel (src/lib/database.types.ts)
+        run: |
+          supabase gen types typescript --local > src/lib/database.types.ts
+          if ! git diff --exit-code src/lib/database.types.ts; then
+            echo "::error file=src/lib/database.types.ts::Databasetypes wijken af van de migraties. Draai lokaal 'npm run db:types' en commit het resultaat."
+            exit 1
+          fi
       - name: Fictieve testdata en lokale configuratie
         run: node scripts/local-setup.mjs --schrijf-env
         env:

@@ -42,9 +42,14 @@ npm run typecheck && npm run lint
 npm test                 # unit-tests
 npm run test:db          # database-/RLS-securitytests (PostgreSQL; zie DATABASE.md)
 npx vitest run --project integratie   # pipeline tegen lokale Supabase
-npx playwright test      # E2E (lokale Supabase + dev-server)
+npx playwright test      # E2E (lokale Supabase + dev-server), incl. toegankelijkheid (08-a11y)
+npm run db:types         # databasetypes opnieuw genereren na een migratie (zie DATABASE.md)
 RUN_LIVE_AI=1 ANTHROPIC_API_KEY=... npx vitest run tests/integration/claude-live.test.ts   # optioneel, kostenbegrensd
 ```
+
+**Toegankelijkheid**: `tests/e2e/08-a11y.spec.ts` scant met axe-core (WCAG 2.1 A/AA) de inlog-, registratie- en wachtwoordpagina's en, als admin, dashboard, woningen, nieuwe woning, schrijfwijzer, instellingen en gebruikers. Overtredingen met impact *serious* of *critical* laten de test falen; lichtere meldingen worden gelogd.
+
+**CI** (`.github/workflows/ci.yml`): `kwaliteit` (typecheck, lint, unit-tests, build) · `beveiliging` (`npm audit --omit=dev --audit-level=high`, geheimencontrole, dependency review; de geaccepteerde moderate meldingen staan in SECURITY.md) · `database` (RLS-tests op PostgreSQL) · `e2e` (lokale Supabase: controle dat `src/lib/database.types.ts` actueel is, integratietests, Playwright incl. a11y). **Dependabot** (`.github/dependabot.yml`) opent wekelijks gegroepeerde npm-updates (minor/patch samen; aparte groepen voor `@supabase/*` en Next.js/React) en maandelijks GitHub Actions-updates, max. 5 open PR's per ecosysteem.
 
 ## Documentatie
 
