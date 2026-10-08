@@ -52,13 +52,14 @@ import type { Channel, ContentVersionRow, Language, ReviewIssueRow } from "@/lib
 import type { TextReviewOutput } from "@/lib/ai/schemas";
 import { logCopy, restoreVersion, saveTextVersion, setTextStatus } from "@/app/(app)/woningen/[id]/teksten/actions";
 
-type RewriteMode = "korter" | "uitgebreider" | "zakelijker" | "persoonlijker" | "natuurlijker";
+type RewriteMode = "korter" | "uitgebreider" | "zakelijker" | "persoonlijker" | "natuurlijker" | "andere_invalshoek";
 const REWRITES: { mode: RewriteMode; label: string }[] = [
   { mode: "korter", label: "Korter" },
   { mode: "uitgebreider", label: "Uitgebreider" },
   { mode: "zakelijker", label: "Zakelijker" },
   { mode: "persoonlijker", label: "Persoonlijker" },
   { mode: "natuurlijker", label: "Natuurlijker" },
+  { mode: "andere_invalshoek", label: "Andere invalshoek (variant)" },
 ];
 
 export type SlotPermissions = { edit: boolean; regenerate: boolean; submit: boolean; approve: boolean };

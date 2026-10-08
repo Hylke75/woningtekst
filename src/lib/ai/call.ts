@@ -12,7 +12,6 @@ export type AiCallOptions<S extends z.ZodType> = {
   operation: string;
   schema: S;
   system: string;
-  cachedContext?: string;
   content: AiContentBlock[];
   propertyId?: string | null;
   jobId?: string | null;
@@ -62,14 +61,17 @@ export async function callClaude<S extends z.ZodType>(opts: AiCallOptions<S>): P
     if (!res.allowed || !res.event_id) throw quotaError(res.reason ?? "onbekend");
 
     const started = Date.now();
-    let usage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0 };
+    let usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens?: number } = {
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_read_input_tokens: 0,
+    };
     let servedModel = model;
     try {
       const response = await transport.complete({
         operation: opts.operation,
         model,
         system: opts.system,
-        cachedContext: opts.cachedContext,
         content: opts.content,
         jsonSchema: jsonSchemaFor(opts.schema),
         maxTokens: opts.maxTokens ?? 16000,
@@ -116,7 +118,7 @@ async function finish(
   supabase: ServerSupabase,
   eventId: string,
   status: "succes" | "fout",
-  usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens: number },
+  usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens?: number },
   cost: number,
   errorCode: string | null,
   durationMs: number,
@@ -126,7 +128,8 @@ async function finish(
     p_secret: env.SERVER_RPC_SECRET,
     p_event_id: eventId,
     p_status: status,
-    p_input_tokens: usage.input_tokens,
+    // Cache-schrijftokens tellen als input (de kosten zijn al met 1,25× berekend).
+    p_input_tokens: usage.input_tokens + (usage.cache_creation_input_tokens ?? 0),
     p_output_tokens: usage.output_tokens,
     p_cache_read_tokens: usage.cache_read_input_tokens,
     p_estimated_cost: cost,

@@ -32,8 +32,8 @@ const STEPS = [
   { key: "opslaan", label: "Opslaan" },
 ] as const;
 
-/** Maximaal aantal opeenvolgende stapverzoeken; voorkomt een eindeloze lus. */
-const MAX_STEP_CALLS = 20;
+/** Hoe lang de browser maximaal de voortgang volgt; de server werkt daarna zelfstandig door. */
+const MAX_FOLLOW_MS = 30 * 60_000;
 
 function slotLabel(key: string) {
   const [c, l] = key.split(":") as [Channel, Language];
@@ -68,7 +68,8 @@ export function GenerationPanel({
     async (jobId: string) => {
       setRunning(true);
       abort.current = new AbortController();
-      for (let i = 0; i < MAX_STEP_CALLS; i++) {
+      const until = Date.now() + MAX_FOLLOW_MS;
+      while (Date.now() < until) {
         const res = await api<{ job: PublicJob }>(`/api/jobs/${jobId}/verder`, { method: "POST", body: {}, signal: abort.current.signal });
         if (!res.ok) {
           if (res.error.code === "afgebroken") break;
@@ -87,14 +88,21 @@ export function GenerationPanel({
           break;
         }
         if (res.data.job.status === "bezig") {
-          // Een ander verzoek verwerkt deze stap; even wachten.
-          await new Promise((r) => setTimeout(r, 4000));
+          // De server verwerkt deze stap al (achtergrond of ander tabblad); even wachten.
+          await new Promise((r) => setTimeout(r, 5000));
         }
       }
       setRunning(false);
     },
     [router],
   );
+
+  // Openen van de pagina met een lopende of onderbroken generatie: voortgang volgen en zo nodig hervatten.
+  useEffect(() => {
+    if (!initialJob || !["wachtrij", "bezig", "onderbroken"].includes(initialJob.status)) return;
+    const t = setTimeout(() => void drive(initialJob.id), 0);
+    return () => clearTimeout(t);
+  }, [initialJob, drive]);
 
   async function start() {
     setDialogOpen(false);
@@ -176,7 +184,8 @@ export function GenerationPanel({
               </Button>
             </div>
           ) : running ? (
-            <div className="flex justify-end">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">De generatie loopt op de server; u kunt deze pagina sluiten en later terugkomen.</p>
               <Button size="sm" variant="ghost" onClick={() => void cancel()}>
                 Stoppen
               </Button>

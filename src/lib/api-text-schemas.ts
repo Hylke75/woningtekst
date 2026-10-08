@@ -17,7 +17,7 @@ export const rewriteBody = z.object({
   channel: channelSchema,
   language: languageSchema,
   expectedVersion: z.number().int().min(0).nullable(),
-  mode: z.enum(["korter", "uitgebreider", "zakelijker", "persoonlijker", "natuurlijker"]),
+  mode: z.enum(["korter", "uitgebreider", "zakelijker", "persoonlijker", "natuurlijker", "andere_invalshoek"]),
 });
 
 export const reviewBody = z.object({

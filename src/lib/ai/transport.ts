@@ -5,15 +5,14 @@ import { AppError } from "@/lib/errors";
 import { mockComplete } from "@/lib/ai/mock";
 
 export type AiContentBlock =
-  | { type: "text"; text: string }
+  /** cache: markeer als prompt-cache-breakpoint (stabiele, herbruikte data zoals profiel en voorbeelden). */
+  | { type: "text"; text: string; cache?: boolean }
   | { type: "image"; mediaType: "image/jpeg" | "image/png" | "image/webp"; base64: string };
 
 export type AiRequest = {
   operation: string;
   model: string;
   system: string;
-  /** Stabiele context (schrijfwijzer) apart, zodat deze gecachet kan worden. */
-  cachedContext?: string;
   content: AiContentBlock[];
   jsonSchema: Record<string, unknown>;
   maxTokens: number;
@@ -27,7 +26,7 @@ export type AiResponse = {
   text: string;
   model: string;
   stopReason: string | null;
-  usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens: number };
+  usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens?: number };
 };
 
 export interface AiTransport {
@@ -42,13 +41,11 @@ class AnthropicTransport implements AiTransport {
   }
 
   async complete(req: AiRequest): Promise<AiResponse> {
-    const system: Anthropic.Beta.Messages.BetaTextBlockParam[] = [{ type: "text", text: req.system }];
-    if (req.cachedContext) {
-      system.push({ type: "text", text: req.cachedContext, cache_control: { type: "ephemeral" } });
-    }
+    // De systeeminstructie (incl. schrijfwijzer) is per versie stabiel: altijd cachen.
+    const system: Anthropic.Beta.Messages.BetaTextBlockParam[] = [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }];
     const content: Anthropic.Beta.Messages.BetaContentBlockParam[] = req.content.map((b) =>
       b.type === "text"
-        ? { type: "text", text: b.text }
+        ? { type: "text", text: b.text, ...(b.cache ? { cache_control: { type: "ephemeral" as const } } : {}) }
         : { type: "image", source: { type: "base64", media_type: b.mediaType, data: b.base64 } },
     );
     try {
@@ -79,6 +76,7 @@ class AnthropicTransport implements AiTransport {
           input_tokens: message.usage.input_tokens,
           output_tokens: message.usage.output_tokens,
           cache_read_input_tokens: message.usage.cache_read_input_tokens ?? 0,
+          cache_creation_input_tokens: message.usage.cache_creation_input_tokens ?? 0,
         },
       };
     } catch (err) {

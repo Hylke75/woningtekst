@@ -20,6 +20,8 @@ const serverSchema = z.object({
   ANTHROPIC_API_KEY: z.string().min(10).optional(),
   ANTHROPIC_MODEL: z.string().min(3).default("claude-opus-5-5"),
   ANTHROPIC_EXTRACTION_MODEL: z.string().min(3).optional(),
+  /** Lichter model voor SEO/hashtags en korte social-teksten (hergenereren/herschrijven). */
+  ANTHROPIC_LIGHT_MODEL: z.string().min(3).default("claude-sonnet-5-5"),
   ANTHROPIC_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
   ANTHROPIC_FALLBACKS: z.enum(["default", "off"]).default("default"),
   ANTHROPIC_TIMEOUT_MS: z.coerce.number().int().min(10_000).max(800_000).default(240_000),
@@ -29,6 +31,13 @@ const serverSchema = z.object({
   UPLOAD_MAX_FILES_PER_PROPERTY: z.coerce.number().int().min(1).max(200).default(40),
   SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(10).max(3600).default(120),
   VERCEL_ENV: z.string().optional(),
+  /** Moet "true" zijn in Preview-deployments: bevestigt dat Preview een eigen (test)database gebruikt. */
+  PREVIEW_DATABASE_ISOLATED: boolish,
+  /** Optioneel: e-mail via Resend (meldingen). Zonder sleutel worden meldingen alleen in de app getoond. */
+  RESEND_API_KEY: z.string().min(10).optional(),
+  MAIL_FROM: z.string().min(3).optional(),
+  /** Optioneel: geheim voor Vercel Cron (Authorization: Bearer …). */
+  CRON_SECRET: z.string().min(16).optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;
@@ -46,6 +55,11 @@ export function serverEnv(): ServerEnv {
   }
   if (parsed.data.AI_MOCK && parsed.data.VERCEL_ENV === "production") {
     throw new Error("AI_MOCK mag niet actief zijn in productie");
+  }
+  // Previews mogen nooit op de productiedatabase draaien: alleen met expliciete bevestiging
+  // dat de Preview-omgeving een eigen testproject gebruikt.
+  if (parsed.data.VERCEL_ENV === "preview" && !parsed.data.PREVIEW_DATABASE_ISOLATED) {
+    throw new Error("Preview-omgeving zonder eigen testdatabase: zet PREVIEW_DATABASE_ISOLATED=true na koppeling van een testproject");
   }
   cached = parsed.data;
   return cached;

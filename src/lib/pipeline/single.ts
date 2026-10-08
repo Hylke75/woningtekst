@@ -20,6 +20,12 @@ import type { SessionContext } from "@/lib/auth/session";
 import { getActiveStyleGuide, latestVersions } from "@/lib/data/content";
 import { claimJob, createOrGetJob, failJob, hashInput, updateJob } from "@/lib/pipeline/jobs";
 import { mockProfile } from "@/lib/pipeline/generation";
+import { serverEnv } from "@/lib/env";
+
+/** Korte social-teksten gaan via het lichtere model; Funda en website via het hoofdmodel. */
+function modelFor(channel: Channel): string | undefined {
+  return channel === "facebook" || channel === "instagram" ? serverEnv().ANTHROPIC_LIGHT_MODEL : undefined;
+}
 
 type SingleArgs = {
   supabase: ServerSupabase;
@@ -171,6 +177,7 @@ export async function regenerateOne(args: SingleArgs & { instruction?: string })
       propertyId: property.id,
       jobId: job.id,
       maxTokens: channel === "funda" ? 24000 : 8000,
+      model: modelFor(channel),
       mockInput: { ...mockProfile(property), channel, language },
     });
     const html = slotHtmlFromOutput(channel, language, r.data, property, guide.content);
@@ -190,7 +197,7 @@ export async function regenerateOne(args: SingleArgs & { instruction?: string })
   });
 }
 
-/** Korter, uitgebreider, zakelijker, persoonlijker of natuurlijker. Werkt op de laatst opgeslagen versie. */
+/** Korter, uitgebreider, zakelijker, persoonlijker, natuurlijker of een variant met andere invalshoek. Werkt op de laatst opgeslagen versie. */
 export async function rewriteText(args: SingleArgs & { mode: RewriteMode }) {
   const { supabase, session, property, channel, language, mode } = args;
   const guide = await getActiveStyleGuide(supabase);
@@ -219,6 +226,7 @@ export async function rewriteText(args: SingleArgs & { mode: RewriteMode }) {
       propertyId: property.id,
       jobId: job.id,
       maxTokens: channel === "funda" ? 24000 : 8000,
+      model: modelFor(channel),
       mockInput: mockProfile(property),
     });
     const html = sanitizeContentHtml(r.data.html);

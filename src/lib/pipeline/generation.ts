@@ -1,14 +1,17 @@
 import "server-only";
 import { callClaude } from "@/lib/ai/call";
 import {
+  GENERATION_TASKS,
   PROMPT_VERSION,
-  analysisSystem,
-  dutchSystem,
-  englishSystem,
+  examplesForPrompt,
+  generationContext,
+  generationSystem,
   profileForPrompt,
-  reviewSystem,
-  seoSystem,
+  type ExampleText,
+  type GenerationTask,
 } from "@/lib/ai/prompts";
+import type { AiContentBlock } from "@/lib/ai/transport";
+import { serverEnv } from "@/lib/env";
 import {
   analysisSchema,
   languageTextsSchema,
@@ -26,7 +29,7 @@ import { checkText, compareLanguages, type Finding } from "@/lib/content/validat
 import { getFieldValue, missingForGeneration, streetLabel } from "@/lib/domain/property-mapping";
 import { AppError, fromDbError } from "@/lib/errors";
 import type { ServerSupabase } from "@/lib/supabase/server";
-import type { Channel, JobRow, Language, PropertyRow, StyleGuideRow } from "@/lib/db-types";
+import type { Channel, DocumentRow, JobRow, Language, PropertyRow, StyleGuideRow } from "@/lib/db-types";
 import { SLOTS, getStyleGuide, isProtected, latestVersions, type SlotKey } from "@/lib/data/content";
 import { claimJob, failJob, getJob, hashInput, updateJob } from "@/lib/pipeline/jobs";
 
@@ -183,19 +186,27 @@ export async function runNextGenerationStep(supabase: ServerSupabase, jobId: str
       throw new AppError("conflict", "De woninggegevens of de schrijfwijzer zijn gewijzigd sinds de start. Start de generatie opnieuw.");
     }
     const guide = await getStyleGuide(supabase, claimed.style_guide_id);
-    const guideText = guideForPrompt(guide.content);
-    const profile = profileForPrompt(property);
-    const common = { supabase, propertyId: property.id, jobId, mockInput: mockProfile(property) };
+    const system = generationSystem(guideForPrompt(guide.content));
+    const examples = step === "opslaan" ? "" : examplesForPrompt(await loadExamples(supabase, property.id));
+    // Profiel + voorbeelden zijn voor alle stappen gelijk: één cache-breakpoint, zodat
+    // stap 2 t/m 5 de systeeminstructie én deze context uit de prompt-cache lezen.
+    const context: AiContentBlock = { type: "text", text: generationContext(profileForPrompt(property), examples), cache: true };
+    const common = { supabase, propertyId: property.id, jobId, mockInput: mockProfile(property), system };
+    const task = (t: GenerationTask, data: string) => `<taak>\n${GENERATION_TASKS[t]}\n</taak>${data ? `\n\n${data}` : ""}`;
 
     let output: unknown;
     switch (step) {
       case "analyse": {
+        const photos = await loadPhotos(supabase, property.id);
         const r = await callClaude({
           ...common,
           operation: "analyse",
           schema: analysisSchema,
-          system: analysisSystem(guideText),
-          content: [{ type: "text", text: `${profile}\n\nBepaal de positionering voor deze woning.` }],
+          content: [
+            context,
+            ...photos,
+            { type: "text", text: task("analyse", photos.length ? `Er zijn ${photos.length} foto's van de woning meegestuurd.` : "Er zijn geen foto's meegestuurd.") },
+          ],
           maxTokens: 8000,
         });
         output = r.data;
@@ -206,8 +217,7 @@ export async function runNextGenerationStep(supabase: ServerSupabase, jobId: str
           ...common,
           operation: "nederlands",
           schema: languageTextsSchema,
-          system: dutchSystem(guideText),
-          content: [{ type: "text", text: `${profile}\n\n<analyse>\n${JSON.stringify(steps.analyse)}\n</analyse>\n\nSchrijf de vier Nederlandse teksten.` }],
+          content: [context, { type: "text", text: task("nederlands", `<analyse>\n${JSON.stringify(steps.analyse)}\n</analyse>`) }],
           maxTokens: 32000,
         });
         output = r.data;
@@ -218,13 +228,7 @@ export async function runNextGenerationStep(supabase: ServerSupabase, jobId: str
           ...common,
           operation: "engels",
           schema: languageTextsSchema,
-          system: englishSystem(guideText),
-          content: [
-            {
-              type: "text",
-              text: `${profile}\n\n<teksten taal="nl">\n${JSON.stringify(steps.nederlands)}\n</teksten>\n\nSchrijf de vier Engelse teksten.`,
-            },
-          ],
+          content: [context, { type: "text", text: task("engels", `<teksten taal="nl">\n${JSON.stringify(steps.nederlands)}\n</teksten>`) }],
           maxTokens: 32000,
         });
         output = r.data;
@@ -235,15 +239,20 @@ export async function runNextGenerationStep(supabase: ServerSupabase, jobId: str
           ...common,
           operation: "seo",
           schema: seoSchema,
-          system: seoSystem(guideText),
           content: [
+            context,
             {
               type: "text",
-              text: `${profile}\n\n<teksten>\nNL website: ${JSON.stringify(steps.nederlands?.website)}\nEN website: ${JSON.stringify(steps.engels?.website)}\nNL instagram: ${steps.nederlands?.instagram.tekst}\n</teksten>\n\nMaak SEO-gegevens en hashtagsets.`,
+              text: task(
+                "seo",
+                `<teksten>\nNL website: ${JSON.stringify(steps.nederlands?.website)}\nEN website: ${JSON.stringify(steps.engels?.website)}\nNL instagram: ${steps.nederlands?.instagram.tekst}\n</teksten>`,
+              ),
             },
           ],
           maxTokens: 6000,
           effort: "low",
+          // SEO en hashtags vragen geen zwaar model; scheelt kosten.
+          model: serverEnv().ANTHROPIC_LIGHT_MODEL,
         });
         output = r.data;
         break;
@@ -255,11 +264,14 @@ export async function runNextGenerationStep(supabase: ServerSupabase, jobId: str
           ...common,
           operation: "review",
           schema: reviewSchema,
-          system: reviewSystem(guideText),
           content: [
+            context,
             {
               type: "text",
-              text: `${profile}\n\n<teksten taal="nl">\n${textsAsPlain(nl)}\n</teksten>\n\n<teksten taal="en">\n${textsAsPlain(en)}\n</teksten>\n\nControleer de teksten.`,
+              text: task(
+                "controle",
+                `<analyse>\n${JSON.stringify({ foto_waarnemingen: steps.analyse?.foto_waarnemingen ?? [] })}\n</analyse>\n\n<teksten taal="nl">\n${textsAsPlain(nl)}\n</teksten>\n\n<teksten taal="en">\n${textsAsPlain(en)}\n</teksten>`,
+              ),
             },
           ],
           maxTokens: 12000,
@@ -282,6 +294,64 @@ export async function runNextGenerationStep(supabase: ServerSupabase, jobId: str
   } catch (err) {
     return failJob(supabase, jobId, err);
   }
+}
+
+const PHOTO_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
+/** Maximaal aantal foto's per analyse en maximale bestandsgrootte (base64 blijft onder de API-limiet). */
+const MAX_PHOTOS = 6;
+const MAX_PHOTO_BYTES = 3_700_000;
+
+/** Foto's van de woning (alleen documenttype "foto") als beeldinvoer voor de analyse. */
+async function loadPhotos(supabase: ServerSupabase, propertyId: string): Promise<AiContentBlock[]> {
+  const { data, error } = await supabase
+    .from("property_documents")
+    .select("id, storage_path, mime_type, file_size")
+    .eq("property_id", propertyId)
+    .eq("document_type", "foto")
+    .lte("file_size", MAX_PHOTO_BYTES)
+    .order("created_at")
+    .limit(MAX_PHOTOS * 2);
+  if (error) throw fromDbError(error);
+  const blocks: AiContentBlock[] = [];
+  for (const doc of (data ?? []) as Pick<DocumentRow, "id" | "storage_path" | "mime_type" | "file_size">[]) {
+    if (blocks.length >= MAX_PHOTOS || !PHOTO_MIME.has(doc.mime_type)) continue;
+    const { data: blob, error: dlError } = await supabase.storage.from("property-documents").download(doc.storage_path);
+    if (dlError || !blob) continue; // Een onleesbare foto mag de generatie niet blokkeren.
+    blocks.push({
+      type: "image",
+      mediaType: doc.mime_type as "image/jpeg" | "image/png" | "image/webp",
+      base64: Buffer.from(await blob.arrayBuffer()).toString("base64"),
+    });
+  }
+  return blocks;
+}
+
+const EXAMPLE_SLOTS: { channel: Channel; language: Language }[] = [
+  { channel: "funda", language: "nl" },
+  { channel: "funda", language: "en" },
+  { channel: "website", language: "nl" },
+  { channel: "instagram", language: "nl" },
+];
+
+/**
+ * Recent goedgekeurde teksten van ándere woningen van dezelfde organisatie (RLS)
+ * als stijlvoorbeeld: zo leert het model de huisstijl van het kantoor zelf.
+ */
+export async function loadExamples(supabase: ServerSupabase, propertyId: string): Promise<ExampleText[]> {
+  const { data, error } = await supabase
+    .from("content_versions")
+    .select("property_id, channel, language, content")
+    .eq("status", "goedgekeurd")
+    .neq("property_id", propertyId)
+    .order("approved_at", { ascending: false })
+    .limit(40);
+  if (error) throw fromDbError(error);
+  const picked: ExampleText[] = [];
+  for (const slot of EXAMPLE_SLOTS) {
+    const row = (data ?? []).find((r) => r.channel === slot.channel && r.language === slot.language);
+    if (row) picked.push({ channel: slot.channel, language: slot.language, text: htmlToPlainText(row.content as string) });
+  }
+  return picked;
 }
 
 export function deterministicChecks(property: PropertyRow, guide: StyleGuideRow, steps: Steps): Finding[] {
@@ -369,7 +439,20 @@ async function saveGeneratedTexts(
   // Controlepunten: één keer per job.
   const { count } = await supabase.from("review_issues").select("id", { count: "exact", head: true }).eq("generation_job_id", job.id);
   if (!count) {
+    const photoNotes = steps.analyse?.foto_waarnemingen ?? [];
     const issues = [
+      ...(photoNotes.length
+        ? [
+            {
+              severity: "info" as const,
+              category: "foto",
+              field_name: null as string | null,
+              description: `De teksten kunnen sfeerbeschrijvingen bevatten die zijn afgeleid van foto's. Controleer of deze kloppen: ${photoNotes.map((n) => `${n.ruimte}: ${n.waarneming}`).join("; ")}`,
+              source_details: null as string | null,
+              slot: null as SlotKey | null,
+            },
+          ]
+        : []),
       ...(steps.analyse?.ontbrekende_gegevens ?? []).map((m) => ({
         severity: m.ernst,
         category: "ontbrekend",

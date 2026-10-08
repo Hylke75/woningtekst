@@ -8,7 +8,11 @@ import { idempotencyKeySchema, json, parseJson, route } from "@/lib/api";
 import { getActiveStyleGuide, SLOTS } from "@/lib/data/content";
 import { assertReadyForGeneration, generationInputHash, protectedSlots } from "@/lib/pipeline/generation";
 import { createOrGetJob, publicJob } from "@/lib/pipeline/jobs";
+import { continueGenerationInBackground } from "@/lib/pipeline/background";
 import type { JobRow } from "@/lib/db-types";
+
+/** De eerste stappen kunnen direct na het antwoord in deze aanroep worden uitgevoerd. */
+export const maxDuration = 300;
 
 const slotKeys = SLOTS.map((s) => s.key) as [string, ...string[]];
 
@@ -40,6 +44,7 @@ export const GET = route<RouteContext<"/api/woningen/[id]/generatie">>(async (_r
 
 /** Start (of hervat bij dezelfde sleutel) een volledige generatie van alle acht teksten. */
 export const POST = route<RouteContext<"/api/woningen/[id]/generatie">>(async (req, { params }) => {
+  const startedAt = Date.now();
   const session = await requireSession("texts.generate_all");
   const { id } = await params;
   const property = await getProperty(id);
@@ -57,5 +62,7 @@ export const POST = route<RouteContext<"/api/woningen/[id]/generatie">>(async (r
     params: { overwriteSlots: body.overwriteSlots },
     inputHash: generationInputHash(property, guide.id, body.overwriteSlots),
   });
+  // Start de verwerking direct op de server; de browser hoeft niet open te blijven.
+  if (job.status === "wachtrij") continueGenerationInBackground(req, supabase, job.id, startedAt);
   return json({ job: publicJob(job) }, 201);
 });

@@ -42,6 +42,10 @@ export const analysisSchema = z.object({
   ontbrekende_gegevens: z
     .array(z.object({ veld: z.string(), toelichting: z.string().max(400), ernst: z.enum(["info", "waarschuwing", "kritiek"]) }))
     .max(30),
+  foto_waarnemingen: z
+    .array(z.object({ ruimte: z.string().max(80), waarneming: z.string().max(300) }))
+    .max(12)
+    .describe("Voorzichtige sfeerwaarnemingen uit meegestuurde foto's; leeg zonder foto's"),
 });
 export type AnalysisOutput = z.infer<typeof analysisSchema>;
 

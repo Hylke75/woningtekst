@@ -141,6 +141,7 @@ export async function mockComplete(req: AiRequest): Promise<AiResponse> {
         toon: "Rustig en feitelijk",
         niet_noemen: [],
         ontbrekende_gegevens: [],
+        foto_waarnemingen: req.content.some((c) => c.type === "image") ? [{ ruimte: "woonkamer", waarneming: "Veel daglicht" }] : [],
       });
     case "nederlands":
       return response(req, languageTexts(p, "nl"));

@@ -21,11 +21,16 @@ export function priceFor(model: string): Price {
 
 export function estimateCostEur(
   model: string,
-  usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null },
+  usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null },
   usdToEur: number,
 ): number {
   const p = priceFor(model);
   const usd =
-    (usage.input_tokens * p.input + usage.output_tokens * p.output + (usage.cache_read_input_tokens ?? 0) * p.cacheRead) / 1_000_000;
+    (usage.input_tokens * p.input +
+      usage.output_tokens * p.output +
+      (usage.cache_read_input_tokens ?? 0) * p.cacheRead +
+      // Schrijven naar de prompt-cache (5 minuten) kost 1,25× de inputprijs.
+      (usage.cache_creation_input_tokens ?? 0) * p.input * 1.25) /
+    1_000_000;
   return Math.round(usd * usdToEur * 1_000_000) / 1_000_000;
 }
