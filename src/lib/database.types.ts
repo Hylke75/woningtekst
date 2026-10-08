@@ -281,14 +281,14 @@ isOneToOne: false
                   ]
                 },"property_documents": {
                   Row: {
-                    "created_at": string,"document_type": Database["public"]['Enums']["document_type"],"extraction_error": string | null,"extraction_status": Database["public"]['Enums']["extraction_status"],"file_size": number,"filename": string,"id": string,"mime_type": string,"organization_id": string,"page_count": number | null,"property_id": string,"sha256": string,"storage_path": string,"uploaded_by": string | null
+                    "alt_text_en": string | null,"alt_text_nl": string | null,"created_at": string,"document_type": Database["public"]['Enums']["document_type"],"extraction_error": string | null,"extraction_status": Database["public"]['Enums']["extraction_status"],"file_size": number,"filename": string,"id": string,"mime_type": string,"organization_id": string,"page_count": number | null,"property_id": string,"sha256": string,"storage_path": string,"uploaded_by": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"document_type"?: Database["public"]['Enums']["document_type"],"extraction_error"?: string | null,"extraction_status"?: Database["public"]['Enums']["extraction_status"],"file_size": number,"filename": string,"id"?: string,"mime_type": string,"organization_id": string,"page_count"?: number | null,"property_id": string,"sha256": string,"storage_path": string,"uploaded_by"?: string | null
+                    "alt_text_en"?: string | null,"alt_text_nl"?: string | null,"created_at"?: string,"document_type"?: Database["public"]['Enums']["document_type"],"extraction_error"?: string | null,"extraction_status"?: Database["public"]['Enums']["extraction_status"],"file_size": number,"filename": string,"id"?: string,"mime_type": string,"organization_id": string,"page_count"?: number | null,"property_id": string,"sha256": string,"storage_path": string,"uploaded_by"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"document_type"?: Database["public"]['Enums']["document_type"],"extraction_error"?: string | null,"extraction_status"?: Database["public"]['Enums']["extraction_status"],"file_size"?: number,"filename"?: string,"id"?: string,"mime_type"?: string,"organization_id"?: string,"page_count"?: number | null,"property_id"?: string,"sha256"?: string,"storage_path"?: string,"uploaded_by"?: string | null
+                    "alt_text_en"?: string | null,"alt_text_nl"?: string | null,"created_at"?: string,"document_type"?: Database["public"]['Enums']["document_type"],"extraction_error"?: string | null,"extraction_status"?: Database["public"]['Enums']["extraction_status"],"file_size"?: number,"filename"?: string,"id"?: string,"mime_type"?: string,"organization_id"?: string,"page_count"?: number | null,"property_id"?: string,"sha256"?: string,"storage_path"?: string,"uploaded_by"?: string | null
                   }
                   Relationships: [
                     {
@@ -341,6 +341,38 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "property_documents"
       referencedColumns: ["id","organization_id"]
+    }
+                  ]
+                },"property_presence": {
+                  Row: {
+                    "organization_id": string,"property_id": string,"seen_at": string,"slot": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "organization_id": string,"property_id": string,"seen_at"?: string,"slot"?: string,"user_id": string
+                  }
+                  Update: {
+                    "organization_id"?: string,"property_id"?: string,"seen_at"?: string,"slot"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "property_presence_property_id_organization_id_fkey"
+      columns: ["property_id","organization_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["id","organization_id"]
+    },{
+      foreignKeyName: "property_presence_property_id_organization_id_fkey"
+      columns: ["property_id","organization_id"]
+isOneToOne: false
+      referencedRelation: "property_overview"
+      referencedColumns: ["id","organization_id"]
+    },{
+      foreignKeyName: "property_presence_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
     }
                   ]
                 },"review_issues": {
@@ -497,11 +529,19 @@ isOneToOne: false
 "cancel_generation_job":
 { Args: { "p_job_id": string }; Returns: undefined
                            },
+"dashboard_stats":
+{ Args: { "p_days"?: number }; Returns: Json
+                           },
 "log_event":
 { Args: { "p_action": string,"p_entity_id": string,"p_entity_type": string,"p_metadata"?: Json }; Returns: undefined
                            },
 "mark_property_checked":
 { Args: { "p_checked": boolean,"p_property_id": string }; Returns: string
+                           },
+"mfa_status":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "current_level": string,"has_verified_factor": boolean
+            }[]
                            },
 "patch_property":
 { Args: { "p_columns": Json,"p_facts"?: Json,"p_positioning"?: Json,"p_property_id": string,"p_publication"?: Json }; Returns: string
@@ -566,6 +606,9 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"server_admin_digest":
+{ Args: { "p_secret": string }; Returns: Json
+                           },
 "server_ai_finish":
 { Args: { "p_cache_read_tokens": number,"p_duration_ms": number,"p_error_code": string,"p_estimated_cost": number,"p_event_id": string,"p_input_tokens": number,"p_output_tokens": number,"p_secret": string,"p_status": string }; Returns: undefined
                            },
@@ -667,7 +710,12 @@ isOneToOne: false
         to: "content_versions"
         isOneToOne: true
         isSetofReturn: false
-      } }
+      } },
+"touch_presence":
+{ Args: { "p_property_id": string,"p_slot": string }; Returns: {
+              "full_name": string,"seen_at": string,"slot": string,"user_id": string
+            }[]
+                           }
           }
           Enums: {
             "app_role": "admin"|"makelaar"|"redacteur","confidence_level": "hoog"|"middel"|"laag","content_channel": "funda"|"website"|"facebook"|"instagram","content_language": "nl"|"en","content_source": "ai_generatie"|"ai_herschrijving"|"handmatig"|"hersteld","content_status": "concept"|"ter_controle"|"goedgekeurd","document_type": "originele_omschrijving"|"verkoopdossier"|"meetrapport"|"plattegrond"|"foto"|"energielabel"|"vve_document"|"overig","extraction_status": "niet_gestart"|"bezig"|"voltooid"|"mislukt"|"niet_van_toepassing","fact_source_type": "document"|"geplakte_tekst"|"handmatig","issue_severity": "info"|"waarschuwing"|"kritiek","job_status": "wachtrij"|"bezig"|"voltooid"|"mislukt"|"geannuleerd","job_type": "volledige_generatie"|"enkele_hergeneratie"|"herschrijving"|"tekstcontrole"|"extractie"|"schrijfwijzer_analyse","listing_status": "in_voorbereiding"|"beschikbaar"|"onder_bod"|"verkocht_onder_voorbehoud"|"verkocht"|"ingetrokken","resolution_status": "open"|"opgelost"|"genegeerd","sale_condition": "kosten_koper"|"vrij_op_naam","verification_status": "onbevestigd"|"bevestigd"|"conflict"|"afgewezen","workflow_status": "concept"|"in_controle"|"goedgekeurd"|"gearchiveerd"
