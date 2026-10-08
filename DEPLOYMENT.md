@@ -56,7 +56,7 @@ Alle mails (bevestiging, uitnodiging, wachtwoordherstel, e-mailwijziging) verstu
 
 ## 2. Vercel
 
-1. Importeer `Hylke75/woningtekst` als nieuw project **`korff-woningtekst-studio`** (Framework: Next.js; `vercel.json` zet functies in **fra1**). Zorg dat de Vercel GitHub-app toegang heeft tot de repository.
+1. Importeer `Hylke75/woningtekst` als nieuw project **`korff-woningtekst-studio`** (Framework: Next.js; `vercel.json` zet functies in **dub1** (Dublin), dezelfde regio als de database in eu-west-1). Zorg dat de Vercel GitHub-app toegang heeft tot de repository.
 2. Productiebranch: na review de branch mergen naar `main` en `main` als productiebranch instellen.
 3. Environment Variables (zie `.env.example`):
 
@@ -71,9 +71,17 @@ Alle mails (bevestiging, uitnodiging, wachtwoordherstel, e-mailwijziging) verstu
 | `ANTHROPIC_EFFORT` | `medium` | `low` | `medium` | plain |
 | `SUPABASE_SECRET_KEY` | optioneel (uitnodigingsmails) | liever niet | nee | **sensitive** |
 | `AI_MOCK` | **niet zetten** (wordt in productie geweigerd) | optioneel `true` | `true` | plain |
+| `ANTHROPIC_LIGHT_MODEL` | `claude-sonnet-5-5` (standaard) | idem | idem | plain |
+| `PREVIEW_DATABASE_ISOLATED` | niet zetten | `true` **pas na** koppeling van een eigen testproject | — | plain |
+| `RESEND_API_KEY` | optioneel (meldingen) | liever niet | nee | **sensitive** |
+| `MAIL_FROM` | `Korff de Gidts Woningtekst Studio <woningtekst@mail.korffdegidts.nl>` | — | — | plain |
+| `CRON_SECRET` | aanbevolen (dagelijkse controle) | — | — | **sensitive** |
+| `ALERT_WEBHOOK_URL` | optioneel (Slack/Teams) | — | — | **sensitive** |
 
    Nooit geheimen in `NEXT_PUBLIC_*`.
-4. **Preview-deployments veilig**: Deployment Protection (Vercel Authentication) aan voor previews; previews wijzen naar het test-Supabase-project, nooit naar productie.
+4. **Preview-deployments veilig**: Deployment Protection (Vercel Authentication) aan voor previews; previews wijzen naar het test-Supabase-project, nooit naar productie. De app dwingt dit af: zonder `PREVIEW_DATABASE_ISOLATED=true` weigert een Preview-deployment te draaien. Verwijder de productiewaarden van `NEXT_PUBLIC_SUPABASE_*` en `SERVER_RPC_SECRET` uit de Preview-omgeving.
+6. **Dagelijkse controle (Vercel Cron)**: `vercel.json` plant `/api/cron/dagelijks` om 06:07 UTC. Zet `CRON_SECRET`; zonder dit geheim weigert de route (503). Met `RESEND_API_KEY` en `MAIL_FROM` mailt de route administrators bij mislukte generaties, budget boven 80% en (op de eerste van de maand) dossiers buiten de bewaartermijn.
+7. **Generatie op de server**: na het starten loopt een generatie op de server door, ook als het tabblad sluit (Next.js `after()` + doorketenen binnen dezelfde sessie). Bij Deployment Protection op productie werkt het doorketenen niet; de browser of een volgend bezoek hervat dan.
 5. Plan: AI-routes gebruiken `maxDuration = 300` (Fluid Compute). Controleer dat het plan dit toestaat.
 
 ## 3. Verificatie na deployment
