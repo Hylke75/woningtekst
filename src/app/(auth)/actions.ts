@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { safeNextPath } from "@/lib/auth/redirect";
+import { normalizeTotpCode } from "@/lib/auth/mfa";
 
 export type AuthFormState = { error?: string; success?: string } | undefined;
 
@@ -27,7 +28,7 @@ export async function signIn(_prev: AuthFormState, formData: FormData): Promise<
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email.toLowerCase(),
     password: parsed.data.password,
   });
@@ -39,7 +40,34 @@ export async function signIn(_prev: AuthFormState, formData: FormData): Promise<
     if (error.status === 429) return { error: "Te veel inlogpogingen. Wacht even en probeer het opnieuw." };
     return { error: "E-mailadres of wachtwoord is onjuist." };
   }
-  redirect(safeNextPath(parsed.data.next));
+  const next = safeNextPath(parsed.data.next);
+  // Met het zojuist ontvangen access token: Supabase controleert de factoren via de Auth-server.
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel(data.session?.access_token);
+  if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+    redirect(`/inloggen/verificatie?volgende=${encodeURIComponent(next)}`);
+  }
+  redirect(next);
+}
+
+/** Tweede stap van inloggen: 6-cijferige code uit de authenticator-app (TOTP). */
+export async function verifyMfaLogin(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const code = normalizeTotpCode(formData.get("code"));
+  const next = safeNextPath(typeof formData.get("next") === "string" ? String(formData.get("next")) : undefined);
+  if (!code) return { error: "Vul de 6-cijferige code uit uw authenticator-app in." };
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims?.claims?.sub) redirect(`/inloggen?volgende=${encodeURIComponent(next)}`);
+  // listFactors vraagt de gebruiker op bij de Auth-server (geen cookiedata).
+  const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+  if (factorsError) return { error: "De verificatie is mislukt. Probeer het opnieuw." };
+  const factor = factors?.totp[0];
+  if (!factor) redirect(next);
+  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code });
+  if (error) {
+    if (error.status === 429) return { error: "Te veel pogingen. Wacht even en probeer het opnieuw." };
+    return { error: "De code is onjuist of verlopen. Probeer het opnieuw met een nieuwe code." };
+  }
+  redirect(next);
 }
 
 export async function requestPasswordReset(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -73,6 +101,7 @@ export async function setNewPassword(_prev: AuthFormState, formData: FormData): 
   if (!data?.claims?.sub) return { error: "De herstellink is verlopen. Vraag een nieuwe link aan." };
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) {
+    if (error.code === "insufficient_aal") return { error: "Bevestig eerst uw inlog met de code uit uw authenticator-app en probeer het daarna opnieuw." };
     if (/same/i.test(error.message)) return { error: "Kies een ander wachtwoord dan uw huidige." };
     if (/weak|pwned/i.test(error.message)) return { error: "Dit wachtwoord is te zwak of komt voor in gelekte wachtwoordlijsten." };
     return { error: "Het wachtwoord kon niet worden ingesteld. Probeer het opnieuw." };

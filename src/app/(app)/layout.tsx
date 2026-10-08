@@ -1,4 +1,6 @@
-import { requirePageSession } from "@/lib/auth/session";
+import Link from "next/link";
+import { needsMfaEnrollment, requirePageSession } from "@/lib/auth/session";
+import { MFA_MESSAGES } from "@/lib/auth/mfa";
 import { can, ROLE_LABELS } from "@/lib/auth/permissions";
 import { NAV_ITEMS } from "@/components/shell/nav-items";
 import { SidebarNav } from "@/components/shell/sidebar-nav";
@@ -28,6 +30,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <UserMenu name={session.fullName} email={session.email} roleLabel={ROLE_LABELS[session.role]} />
           </div>
         </header>
+        {needsMfaEnrollment(session) ? (
+          <div className="border-b border-warning/30 bg-warning/10 px-4 py-2.5 text-sm sm:px-6">
+            {MFA_MESSAGES.inschrijving_nodig}{" "}
+            <Link href="/beveiliging" className="font-medium text-primary hover:underline">
+              Nu instellen
+            </Link>
+          </div>
+        ) : null}
         <main className="mx-auto w-full max-w-[1320px] flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
       </div>
     </div>

@@ -1,9 +1,17 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, type ServerSupabase } from "@/lib/supabase/server";
 import { AppError } from "@/lib/errors";
 import { can, type AppRole, type Capability } from "@/lib/auth/permissions";
+import { MFA_MESSAGES, mfaDecision, normalizeLevel, type AssuranceLevel, type MfaDecision } from "@/lib/auth/mfa";
+
+export type MfaState = {
+  /** Niveau van de sessie uit het door getClaims geverifieerde JWT (`aal`), nooit uit cookiedata. */
+  currentLevel: AssuranceLevel | null;
+  /** Of de gebruiker een geverifieerde factor heeft (database: auth.mfa_factors). */
+  hasVerifiedFactor: boolean;
+};
 
 export type SessionContext = {
   userId: string;
@@ -13,6 +21,7 @@ export type SessionContext = {
   organizationName: string;
   role: AppRole;
   approvalRoles: AppRole[];
+  mfa: MfaState;
 };
 
 /**
@@ -26,7 +35,7 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
   const sub = claimsData?.claims?.sub;
   if (error || !sub) return null;
 
-  const [{ data: membership }, { data: profile }] = await Promise.all([
+  const [{ data: membership }, { data: profile }, mfa] = await Promise.all([
     supabase
       .from("organization_memberships")
       .select("organization_id, role, is_active, organizations(name, organization_settings(approval_roles))")
@@ -34,6 +43,7 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
       .eq("is_active", true)
       .maybeSingle(),
     supabase.from("profiles").select("full_name, email").eq("id", sub).maybeSingle(),
+    readMfaState(supabase, claimsData.claims.aal),
   ]);
 
   if (!membership) {
@@ -45,6 +55,7 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
       organizationName: "",
       role: null as unknown as AppRole,
       approvalRoles: [],
+      mfa,
     };
   }
 
@@ -62,15 +73,68 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
     organizationName: m.organizations?.name ?? "",
     role: m.role,
     approvalRoles: m.organizations?.organization_settings?.approval_roles ?? ["admin", "makelaar"],
+    mfa,
   };
 });
 
-/** Voor pagina's: stuurt door naar inloggen of de geen-toegangpagina. */
+/**
+ * MFA-status van de sessie. Het niveau (aal1/aal2) komt uit de door getClaims
+ * geverifieerde `aal`-claim. Of er een geverifieerde factor is, komt uit de
+ * database (`mfa_status()` leest auth.mfa_factors).
+ * Alleen als die RPC faalt, valt dit terug op `nextLevel` van
+ * getAuthenticatorAssuranceLevel(); die leest de niet-geverifieerde sessiecookie
+ * en wordt daarom nooit gebruikt om iets toe te staan wat de database weigert
+ * (admin-only vereist bovendien altijd een geverifieerde aal2-claim, en de
+ * database dwingt dezelfde regels af via RLS).
+ */
+async function readMfaState(supabase: ServerSupabase, aalClaim: unknown): Promise<MfaState> {
+  const currentLevel = normalizeLevel(aalClaim);
+  const rpc = await supabase.rpc("mfa_status").maybeSingle<{ has_verified_factor: boolean; current_level: string }>();
+  if (!rpc.error) return { currentLevel, hasVerifiedFactor: rpc.data?.has_verified_factor === true };
+  if (process.env.NODE_ENV !== "test") console.error("[mfa] mfa_status niet beschikbaar:", rpc.error.code ?? "onbekend");
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  return { currentLevel, hasVerifiedFactor: aal?.nextLevel === "aal2" };
+}
+
+/** MFA-beslissing voor deze sessie en (optioneel) een benodigd recht. */
+export function mfaDecisionFor(session: SessionContext, capability?: Capability): MfaDecision {
+  return mfaDecision({
+    role: session.organizationId ? session.role : null,
+    capability,
+    currentLevel: session.mfa.currentLevel,
+    hasVerifiedFactor: session.mfa.hasVerifiedFactor,
+  });
+}
+
+/**
+ * Voor de UI: mag deze sessie het recht nu gebruiken (rol én MFA)? Gebruik dit
+ * om beheerfuncties te tonen; server actions controleren via requireSession.
+ */
+export function canUse(session: SessionContext, capability: Capability): boolean {
+  return can(session.role, capability, session.approvalRoles) && mfaDecisionFor(session, capability) === "toegestaan";
+}
+
+/** Administrator die nog geen twee-stapsverificatie heeft ingesteld. */
+export function needsMfaEnrollment(session: SessionContext): boolean {
+  return session.role === "admin" && Boolean(session.organizationId) && !session.mfa.hasVerifiedFactor;
+}
+
+/**
+ * Voor pagina's: stuurt door naar inloggen, naar de verificatiestap (factor
+ * aanwezig maar sessie aal1), naar de geen-toegangpagina, of — bij een
+ * admin-only recht zonder factor — naar /beveiliging om MFA in te stellen.
+ */
 export async function requirePageSession(capability?: Capability): Promise<SessionContext> {
   const session = await getSession();
   if (!session) redirect("/inloggen");
+  if (mfaDecisionFor(session) === "verificatie_nodig") redirect("/inloggen/verificatie");
   if (!session.organizationId) redirect("/geen-toegang");
   if (capability && !can(session.role, capability, session.approvalRoles)) redirect("/dashboard?melding=geen-rechten");
+  if (capability) {
+    const decision = mfaDecisionFor(session, capability);
+    if (decision === "verificatie_nodig") redirect("/inloggen/verificatie");
+    if (decision === "inschrijving_nodig") redirect("/beveiliging?melding=mfa-vereist");
+  }
   return session;
 }
 
@@ -78,9 +142,14 @@ export async function requirePageSession(capability?: Capability): Promise<Sessi
 export async function requireSession(capability?: Capability): Promise<SessionContext> {
   const session = await getSession();
   if (!session) throw new AppError("niet_ingelogd", "U bent niet ingelogd.");
+  if (mfaDecisionFor(session) === "verificatie_nodig") throw new AppError("geen_toegang", MFA_MESSAGES.verificatie_nodig);
   if (!session.organizationId) throw new AppError("geen_toegang", "Uw account is nog niet aan een organisatie gekoppeld.");
   if (capability && !can(session.role, capability, session.approvalRoles)) {
     throw new AppError("geen_toegang", "U heeft geen rechten voor deze actie.");
+  }
+  if (capability) {
+    const decision = mfaDecisionFor(session, capability);
+    if (decision !== "toegestaan") throw new AppError("geen_toegang", MFA_MESSAGES[decision]);
   }
   return session;
 }

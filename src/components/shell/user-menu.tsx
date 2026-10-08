@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -35,6 +36,13 @@ export function UserMenu({ name, email, roleLabel }: { name: string; email: stri
           <span className="block truncate text-sm font-medium">{name || "Ingelogd"}</span>
           <span className="block truncate text-xs text-muted-foreground">{email}</span>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/beveiliging">
+            <ShieldCheck className="size-4" />
+            Beveiliging
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <form action={signOut}>
           <DropdownMenuItem asChild>

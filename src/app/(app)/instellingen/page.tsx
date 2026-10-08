@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requirePageSession } from "@/lib/auth/session";
-import { can, ROLE_LABELS } from "@/lib/auth/permissions";
+import { canUse, requirePageSession } from "@/lib/auth/session";
+import { ROLE_LABELS } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { serverEnv, aiConfigured } from "@/lib/env";
 import { listColleagues } from "@/lib/data/properties";
@@ -42,7 +42,7 @@ function Section({ title, description, children }: { title: string; description?
 
 export default async function SettingsPage() {
   const session = await requirePageSession();
-  const isAdmin = can(session.role, "settings.edit");
+  const isAdmin = canUse(session, "settings.edit");
   const supabase = await createClient();
   const env = serverEnv();
   const now = new Date();

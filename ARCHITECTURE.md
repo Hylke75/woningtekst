@@ -15,7 +15,7 @@ Supabase (EU)                                                  Anthropic Claude 
    PostgreSQL 17 + RLS (default deny)                          structured outputs (JSON Schema)
    RPC's (security definer, server-geheim voor kosten/jobs)    adaptive thinking, effort
    Storage: private bucket property-documents                  server-side fallback bij weigering
-   Auth: e-mail/wachtwoord, uitnodigingen
+   Auth: e-mail/wachtwoord, uitnodigingen, TOTP-MFA (verplicht voor admins)
 ```
 
 ### Kernprincipes
@@ -24,7 +24,8 @@ Supabase (EU)                                                  Anthropic Claude 
 2. **Eén gezaghebbende bron voor rollen**: `organization_memberships` (organisatie + rol + actief). `profiles` bevat alleen weergavegegevens.
 3. **Geen service-role key in het verzoekpad.** Geprivilegieerde server-acties (AI-verbruik registreren, jobstatus bijwerken) gebruiken RPC's die een server-geheim vereisen; alleen de SHA-256-hash staat in de database. Zo kan een ingelogde gebruiker via de Data API geen kosten of jobstatussen manipuleren. De optionele `SUPABASE_SECRET_KEY` wordt uitsluitend voor uitnodigingsmails gebruikt.
 4. **Append-only teksten.** Elke wijziging is een nieuwe `content_versions`-rij; alleen status/indiening/goedkeuring kan via RPC wijzigen. Versienummers worden in de database bepaald onder een advisory lock; optimistische concurrency (`expected_version`) voorkomt stil overschrijven.
-5. **Mens beslist.** AI-gegevens zijn altijd "onbevestigd"; conflicterende bronnen worden "conflict" tot een medewerker kiest. Generatie start pas na expliciete menselijke controle van de gegevens.
+5. **Twee-stapsverificatie (TOTP).** Wie een factor heeft, komt pas na de code verder (`/inloggen/verificatie`); administrators gebruiken beheerrechten alleen met een aal2-sessie. Beslislogica in `src/lib/auth/mfa.ts` (puur), afgedwongen in `session.ts` én in de database-helpers (migratie `20261009100000_mfa.sql`).
+6. **Mens beslist.** AI-gegevens zijn altijd "onbevestigd"; conflicterende bronnen worden "conflict" tot een medewerker kiest. Generatie start pas na expliciete menselijke controle van de gegevens.
 
 ## Datastromen
 

@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth/auth-form";
+import { getSession, mfaDecisionFor } from "@/lib/auth/session";
 import { setNewPassword } from "../actions";
 
 export const metadata: Metadata = { title: "Nieuw wachtwoord" };
 
-export default function SetPasswordPage() {
+export default async function SetPasswordPage() {
+  // Met twee-stapsverificatie vereist Supabase een aal2-sessie om het wachtwoord te wijzigen.
+  const session = await getSession();
+  if (session && mfaDecisionFor(session) === "verificatie_nodig") {
+    redirect(`/inloggen/verificatie?volgende=${encodeURIComponent("/wachtwoord-instellen")}`);
+  }
   return (
     <>
       <h2 className="mb-1 text-lg font-semibold">Nieuw wachtwoord instellen</h2>

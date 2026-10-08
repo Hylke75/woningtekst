@@ -12,6 +12,7 @@ import { runExtraction } from "@/lib/pipeline/extraction";
 import type { SessionContext } from "@/lib/auth/session";
 import type { PropertyRow, StyleGuideRow } from "@/lib/db-types";
 import type { ServerSupabase } from "@/lib/supabase/server";
+import { enrollTotp, resetMfaFactors } from "../helpers/mfa";
 
 /**
  * Integratietests tegen een lokale Supabase-stack (supabase start + scripts/local-setup.mjs).
@@ -37,10 +38,16 @@ const PASSWORD = "Testwachtwoord123";
 const calls: AiRequest[] = [];
 let failNext: ((req: AiRequest) => boolean) | null = null;
 
-async function signIn(email: string) {
+/**
+ * @param mfa schrijft een TOTP-factor in en verifieert die (aal2-sessie): admin-only
+ * bewerkingen vereisen dat, ook in de database. De factor wordt in afterAll verwijderd.
+ */
+async function signIn(email: string, opts: { mfa?: boolean } = {}) {
   const client = createClient(URL, KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  if (opts.mfa && process.env.SUPABASE_SECRET_KEY) await resetMfaFactors(URL, process.env.SUPABASE_SECRET_KEY, email);
   const { data, error } = await client.auth.signInWithPassword({ email, password: PASSWORD });
   if (error) throw error;
+  const factor = opts.mfa ? await enrollTotp(client) : null;
   const { data: m } = await client.from("organization_memberships").select("organization_id, role").eq("user_id", data.user.id).single();
   const session: SessionContext = {
     userId: data.user.id,
@@ -50,8 +57,9 @@ async function signIn(email: string) {
     organizationName: "",
     role: m!.role,
     approvalRoles: ["admin", "makelaar"],
+    mfa: { currentLevel: factor ? "aal2" : "aal1", hasVerifiedFactor: Boolean(factor) },
   };
-  return { client: client as unknown as ServerSupabase, raw: client, session };
+  return { client: client as unknown as ServerSupabase, raw: client, session, factorId: factor?.factorId ?? null };
 }
 
 async function newProperty(client: SupabaseClient, orgId: string, street: string) {
@@ -93,12 +101,16 @@ describe.skipIf(!available)("pipeline-integratie (lokale Supabase)", () => {
     });
     makelaar = await signIn("makelaar@example.test");
     redacteur = await signIn("redacteur@example.test");
-    admin = await signIn("admin@example.test");
+    admin = await signIn("admin@example.test", { mfa: true });
     const { data } = await makelaar.raw.from("style_guides").select("*").eq("is_active", true).single();
     guide = data as StyleGuideRow;
   });
 
-  afterAll(() => setAiTransportForTests(null));
+  afterAll(async () => {
+    setAiTransportForTests(null);
+    // Factor van de admin opruimen (aal2-sessie mag dat), zodat E2E-tests schoon beginnen.
+    if (admin?.factorId) await admin.raw.auth.mfa.unenroll({ factorId: admin.factorId });
+  });
   beforeEach(() => {
     calls.length = 0;
     failNext = null;

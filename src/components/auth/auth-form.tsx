@@ -15,6 +15,10 @@ type Field = {
   type: "email" | "password" | "text";
   autoComplete: string;
   hint?: string;
+  inputMode?: "numeric" | "text" | "email";
+  pattern?: string;
+  maxLength?: number;
+  autoFocus?: boolean;
 };
 
 export function AuthForm({
@@ -60,7 +64,18 @@ export function AuthForm({
       {fields.map((f) => (
         <div key={f.name} className="space-y-1.5">
           <Label htmlFor={f.name}>{f.label}</Label>
-          <Input id={f.name} name={f.name} type={f.type} autoComplete={f.autoComplete} required className="h-10" />
+          <Input
+            id={f.name}
+            name={f.name}
+            type={f.type}
+            autoComplete={f.autoComplete}
+            inputMode={f.inputMode}
+            pattern={f.pattern}
+            maxLength={f.maxLength}
+            autoFocus={f.autoFocus}
+            required
+            className="h-10"
+          />
           {f.hint ? <p className="text-xs text-muted-foreground">{f.hint}</p> : null}
         </div>
       ))}
