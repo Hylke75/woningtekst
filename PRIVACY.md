@@ -23,7 +23,7 @@ Verwerkingsverantwoordelijke: Korff de Gidts NVM Makelaardij. Dit document besch
 
 | Verwerker | Doel | Locatie | Opmerking |
 |---|---|---|---|
-| Supabase | database, authenticatie, opslag | EU (projectregio Frankfurt, `eu-central-1`) | verwerkersovereenkomst (DPA) afsluiten |
+| Supabase | database, authenticatie, opslag | EU (projectregio Ierland, `eu-west-1`) | verwerkersovereenkomst (DPA) afsluiten |
 | Vercel | hosting van de applicatie | functies in EU-regio te configureren (zie DEPLOYMENT.md) | DPA; logbewaring beperken |
 | Anthropic | tekstgeneratie en extractie (Claude API) | VS | DPA + passende doorgiftewaarborgen; API-gegevens worden niet voor training gebruikt; standaard 30 dagen bewaard voor misbruikmonitoring tenzij anders overeengekomen |
 

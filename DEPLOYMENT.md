@@ -6,8 +6,8 @@
 |---|---|
 | GitHub-repository `Hylke75/woningtekst` | bijgewerkt (branch `claude/gracious-allen-575elw`), CI-workflow aanwezig |
 | Lokale volledige stack (Supabase CLI + Docker) | werkend; alle migraties, integratie- en E2E-tests geslaagd |
-| Supabase-productieproject | **blocker**: `create_project` via de Supabase-integratie loopt bij elke poging (eu-central-1 en eu-west-1, laatst op 8 oktober 2026) na 60 s vast en er wordt geen project aangemaakt. De organisatie heeft al 25 projecten; mogelijk zit daar een limiet. Het bestaande project `korff` hoort bij de website en is bewust niet gebruikt. Maak het project zelf aan in het dashboard (stap 1 hieronder). |
-| Vercel-project | **gedeeltelijk**: het lege project `korff-woningtekst-studio` (`prj_UkhPwuiZnXKLAeQizPkNwAtYC9h2`) is via v0 aangemaakt. De Vercel-integratie mag het project echter niet wijzigen en geen environment variables zetten (HTTP 403). Er is nog geen Git-koppeling en nog geen deployment. Stel in het dashboard Framework, Git-koppeling en env vars in (stap 2 hieronder). Het bestaande project `korff` is niet aangeraakt. |
+| Supabase-productieproject | **ingericht**: `korff-woningtekst-studio` (ref `zviyywxjokjspovpkiku`, regio eu-west-1 Ierland). Alle 5 migraties toegepast (checksums gecontroleerd), organisatie aangemaakt met uitnodiging voor de eerste administrator, Advisors gecontroleerd (alleen bewuste RPC-meldingen). Server-geheim (hash) en Auth-instellingen: zie stap 1.3–1.4. |
+| Vercel-project | **gedeployed**: `korff-woningtekst-studio`, gekoppeld aan `Hylke75/woningtekst` (productiebranch `main`); build slaagt. Werkt pas zodra de environment variables (stap 2.3) voor Production zijn gezet en opnieuw is gedeployed. |
 | Anthropic API-sleutel | **blocker**: niet beschikbaar; de applicatie toont "Claude is nog niet gekoppeld" tot `ANTHROPIC_API_KEY` is ingesteld. De live-test is daardoor niet uitgevoerd. |
 | Voorbeelddocument `Korff-de-Gidts-woningomschrijvingen.docx` | **blocker**: niet aangetroffen in repository of Google Drive; analyseer het na livegang via Schrijfwijzer › Voorbeelden analyseren. |
 
