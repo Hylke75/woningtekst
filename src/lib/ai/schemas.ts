@@ -164,3 +164,11 @@ export const styleGuideAnalysisSchema = z.object({
   analyse: z.string().max(4000),
   voorstel_markdown: z.string().min(200).max(60000),
 });
+
+// ---------------------------------------------------------------------------
+// Alt-teksten voor foto's
+// ---------------------------------------------------------------------------
+export const altTextSchema = z.object({
+  nl: z.string().min(3).max(300).describe("Nederlandse alt-tekst, 8–20 woorden"),
+  en: z.string().min(3).max(300).describe("Engelse alt-tekst, 8–20 woorden"),
+});

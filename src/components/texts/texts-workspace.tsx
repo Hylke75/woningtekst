@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/common/status-badge";
 import { GenerationPanel } from "./generation-panel";
 import { SlotEditor, type SlotPermissions } from "./slot-editor";
-import { CHANNEL_LABELS } from "@/lib/domain/labels";
+import { CHANNEL_LABELS, LANGUAGE_LABELS } from "@/lib/domain/labels";
+import { touchPresence, type PresenceEntry } from "@/app/(app)/woningen/[id]/teksten/actions";
 import type { Channel, ContentVersionRow, Language, ReviewIssueRow } from "@/lib/db-types";
 import type { PublicJob } from "@/lib/pipeline/jobs";
 import { cn } from "@/lib/utils";
@@ -49,6 +51,25 @@ export function TextsWorkspace({
     });
   }, []);
 
+  // Aanwezigheid: elke 20 s een hartslag; toont collega's die deze woning ook open hebben.
+  const [others, setOthers] = useState<PresenceEntry[]>([]);
+  useEffect(() => {
+    let stopped = false;
+    const beat = async () => {
+      if (document.visibilityState !== "visible") return;
+      const res = await touchPresence({ propertyId, slot: `${channel}:${language}` });
+      if (!stopped && res.ok) setOthers(res.data);
+    };
+    const first = setTimeout(() => void beat(), 0);
+    const timer = setInterval(() => void beat(), 20_000);
+    return () => {
+      stopped = true;
+      clearTimeout(first);
+      clearInterval(timer);
+    };
+  }, [propertyId, channel, language]);
+  const sameSlot = others.filter((o) => o.slot === `${channel}:${language}`);
+
   const statusDot = (c: Channel) => {
     const latest = ["nl", "en"].map((l) => versionsBySlot[`${c}:${l}`]?.[0]);
     if (latest.every((v) => v?.status === "goedgekeurd")) return "bg-success";
@@ -67,6 +88,27 @@ export function TextsWorkspace({
         blockers={blockers}
         hasUnsavedChanges={dirtySlots.size > 0}
       />
+
+      {others.length ? (
+        <div
+          role="status"
+          className={cn(
+            "flex items-start gap-2 rounded-lg border px-3 py-2 text-sm",
+            sameSlot.length ? "border-warning/30 bg-warning/10" : "bg-card text-muted-foreground",
+          )}
+        >
+          <Users className="mt-0.5 size-4 shrink-0" />
+          <span>
+            {others
+              .map((o) => {
+                const [c, l] = o.slot.split(":") as [Channel, Language];
+                return `${o.name} bewerkt nu ${CHANNEL_LABELS[c] ?? c} ${LANGUAGE_LABELS[l]?.toLowerCase() ?? ""}`.trim();
+              })
+              .join(" · ")}
+            {sameSlot.length ? ". Let op: dezelfde tekst; overleg om versieconflicten te voorkomen." : ""}
+          </span>
+        </div>
+      ) : null}
 
       <Tabs value={channel} onValueChange={(v) => setChannel(v as Channel)}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

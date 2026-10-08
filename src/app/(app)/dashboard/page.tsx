@@ -13,13 +13,23 @@ import { TextStatusBadge } from "@/components/properties/text-status";
 import { FlashMessage } from "@/components/common/flash-message";
 import { propertyLabel } from "@/lib/domain/property-mapping";
 import { relativeTime } from "@/lib/format";
+import { createClient } from "@/lib/supabase/server";
+import { Insights, type DashboardInsights } from "@/components/dashboard/insights";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const session = await requirePageSession();
   const filters = listFilterSchema.parse(await searchParams);
-  const [stats, recent, list] = await Promise.all([dashboardStats(), recentProperties(5), listProperties(filters, session.userId)]);
+  const supabase = await createClient();
+  const [stats, recent, list, insightsRes] = await Promise.all([
+    dashboardStats(),
+    recentProperties(5),
+    listProperties(filters, session.userId),
+    supabase.rpc("dashboard_stats", { p_days: 30 }),
+  ]);
+  // Inzichtcijfers zijn aanvullend: een fout daarin mag het dashboard niet blokkeren.
+  const insights = (insightsRes.error ? null : insightsRes.data) as DashboardInsights | null;
   const canCreate = can(session.role, "properties.create");
 
   const cards = [
@@ -56,6 +66,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </Link>
         ))}
       </section>
+
+      {insights ? <Insights data={insights} isAdmin={session.role === "admin"} /> : null}
 
       <div className="mt-8 grid gap-8 xl:grid-cols-[1fr_320px]">
         <section aria-labelledby="overzicht" className="min-w-0">

@@ -188,6 +188,8 @@ export async function mockComplete(req: AiRequest): Promise<AiResponse> {
         voorstellen: cliche ? [{ origineel: cliche[0], voorstel: "een woning met een zeldzame combinatie van ruimte en ligging", reden: "Cliché volgens de schrijfwijzer", categorie: "cliche" }] : [],
       });
     }
+    case "alt_tekst":
+      return response(req, { nl: "Lichte woonkamer met houten vloer en grote ramen", en: "Bright living room with wooden floor and large windows" });
     case "schrijfwijzer_analyse":
     case "correctie_analyse":
       return response(req, {

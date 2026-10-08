@@ -119,6 +119,8 @@ export type DocumentRow = {
   extraction_status: ExtractionStatus;
   extraction_error: string | null;
   page_count: number | null;
+  alt_text_nl?: string | null;
+  alt_text_en?: string | null;
   created_at: string;
 };
 

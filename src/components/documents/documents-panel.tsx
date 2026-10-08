@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Download, FileText, ImageIcon, Loader2, ScanSearch, Trash2, Upload } from "lucide-react";
+import { Copy, Download, FileText, ImageIcon, Loader2, ScanSearch, Sparkles, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -119,6 +119,29 @@ export function DocumentsPanel({
     startTransition(() => router.refresh());
   }
 
+  const [altBusy, setAltBusy] = useState<Set<string>>(new Set());
+  async function makeAltText(doc: DocumentRow) {
+    setAltBusy((s) => new Set(s).add(doc.id));
+    const res = await api(`/api/documenten/${doc.id}/alt-tekst`, { body: {} });
+    setAltBusy((s) => {
+      const n = new Set(s);
+      n.delete(doc.id);
+      return n;
+    });
+    if (res.ok) toast.success("Alt-teksten gemaakt. Controleer ze voordat u ze gebruikt.");
+    else toast.error(res.error.message);
+    startTransition(() => router.refresh());
+  }
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Gekopieerd.");
+    } catch {
+      toast.error("Kopiëren is niet gelukt.");
+    }
+  }
+
   async function remove(doc: DocumentRow) {
     const res = await api(`/api/documenten/${doc.id}`, { method: "DELETE" });
     if (res.ok) toast.success("Document verwijderd.");
@@ -191,6 +214,26 @@ export function DocumentsPanel({
                       {compact ? "" : ` · ${formatDateTime(doc.created_at)}`}
                     </p>
                     {doc.extraction_status === "mislukt" && doc.extraction_error ? <p className="mt-0.5 text-xs text-destructive">{doc.extraction_error}</p> : null}
+                    {isImage && (doc.alt_text_nl || doc.alt_text_en) ? (
+                      <dl className="mt-1.5 space-y-0.5 text-xs">
+                        {(
+                          [
+                            ["NL", doc.alt_text_nl],
+                            ["EN", doc.alt_text_en],
+                          ] as const
+                        ).map(([lang, text]) =>
+                          text ? (
+                            <div key={lang} className="flex items-start gap-1.5">
+                              <dt className="font-medium text-muted-foreground">Alt {lang}:</dt>
+                              <dd className="min-w-0 flex-1">{text}</dd>
+                              <button type="button" className="text-muted-foreground hover:text-foreground" aria-label={`Alt-tekst ${lang} kopiëren`} onClick={() => void copyText(text)}>
+                                <Copy className="size-3.5" />
+                              </button>
+                            </div>
+                          ) : null,
+                        )}
+                      </dl>
+                    ) : null}
                   </div>
                 </div>
                 <div className={compact ? "flex flex-wrap items-center gap-1.5 pl-7" : "flex flex-wrap items-center gap-1.5 pl-7 sm:pl-0"}>
@@ -199,6 +242,12 @@ export function DocumentsPanel({
                     <Button type="button" size="sm" variant="ghost" disabled={running} onClick={() => void analyse(doc)}>
                       {running ? <Loader2 className="animate-spin" /> : <ScanSearch />}
                       {doc.extraction_status === "voltooid" ? "Opnieuw" : "Analyseren"}
+                    </Button>
+                  ) : null}
+                  {isImage && canUpload ? (
+                    <Button type="button" size="sm" variant="ghost" disabled={altBusy.has(doc.id)} onClick={() => void makeAltText(doc)}>
+                      {altBusy.has(doc.id) ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                      {doc.alt_text_nl ? "Alt-tekst opnieuw" : "Alt-tekst"}
                     </Button>
                   ) : null}
                   <Button asChild size="icon-sm" variant="ghost" aria-label={`${doc.filename} downloaden`}>

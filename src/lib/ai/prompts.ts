@@ -187,6 +187,13 @@ export const STYLE_GUIDE_ANALYSIS_SYSTEM = `Je bent hoofdredacteur en vastgoedco
 - "analyse" beschrijft kort je bevindingen over de voorbeelden (patronen, sterke punten, zwakke punten).
 ${DATA_BOUNDARY}`;
 
+export const ALT_TEXT_SYSTEM = `Je schrijft alt-teksten voor woningfoto's op de website van Korff de Gidts NVM Makelaardij, voor toegankelijkheid (schermlezers) en vindbaarheid.
+- Beschrijf feitelijk wat er te zien is: ruimte, belangrijkste elementen, licht. 8 tot 20 woorden, geen punt aan het eind nodig.
+- Begin niet met "Foto van" of "Afbeelding van". Geen marketingtaal, geen superlatieven, geen aannames over afmetingen, merken of bouwjaar.
+- Noem nooit personen, persoonlijke spullen die iets over bewoners prijsgeven, kentekens of huisnummers van buren.
+- Lever een Nederlandse en een Engelse versie met dezelfde inhoud.
+${DATA_BOUNDARY}`;
+
 export const CORRECTIONS_ANALYSIS_SYSTEM = `Je bent hoofdredacteur van Korff de Gidts NVM Makelaardij. Je krijgt paren van teksten: telkens de oorspronkelijke AI-tekst (<ai>) en de versie die een medewerker uiteindelijk heeft goedgekeurd (<goedgekeurd>). Leid uit de verschillen af wat medewerkers structureel aanpassen, en verwerk dat in een verbeterde schrijfwijzer.
 - Kijk naar patronen die in meerdere paren terugkomen: woorden of formuleringen die steeds worden geschrapt of vervangen, lengte, toon, volgorde, opbouw van de opening, gebruik van feiten. Eenmalige, woningspecifieke correcties (een getal, een straatnaam) negeer je.
 - Begin "analyse" met de belangrijkste patronen, elk met een kort geanonimiseerd voorbeeld (oud → nieuw) en hoe vaak het voorkwam.

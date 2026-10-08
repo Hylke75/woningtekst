@@ -617,3 +617,49 @@ describe("toegang op e-maildomein", () => {
     expect((await db.query("select 1 from public.organization_memberships where user_id = $1", [u.id])).rows).toHaveLength(0);
   });
 });
+
+describe("aanwezigheid, dashboard en samenvatting", () => {
+  it("toont wie dezelfde woning bewerkt, maar niet aan andere organisaties", async () => {
+    await asUser(db, makelaarA, async ({ q }) => {
+      await q("select * from public.touch_presence($1, 'funda:nl')", [propertyA]);
+    }, { commit: true });
+    const others = await asUser(db, redacteurA, async ({ q }) => (await q("select * from public.touch_presence($1, 'website:nl')", [propertyA])).rows);
+    expect(others.map((r) => r.user_id)).toContain(makelaarA.id);
+    expect(others.find((r) => r.user_id === makelaarA.id)?.slot).toBe("funda:nl");
+    await asUser(db, adminB, async ({ deny, q }) => {
+      await deny("select * from public.touch_presence($1, 'funda:nl')", [propertyA]);
+      expect((await q("select * from public.property_presence")).rows).toHaveLength(0);
+    });
+  });
+
+  it("dashboardcijfers volgen RLS en lekken niets van een andere organisatie", async () => {
+    const a = await asUser(db, adminA, async ({ q }) => (await q("select public.dashboard_stats(30) as s")).rows[0].s);
+    const b = await asUser(db, adminB, async ({ q }) => (await q("select public.dashboard_stats(30) as s")).rows[0].s);
+    expect(a.budget.dag_eur).toBeDefined();
+    const expectedB = Number((await db.query("select count(*) from public.properties where organization_id = $1 and deleted_at is null", [orgB])).rows[0].count);
+    expect(Object.values(b.woningen_per_status as Record<string, number>).reduce((x, y) => x + y, 0)).toBe(expectedB);
+    const none = await asUser(db, outsider, async ({ q }) => (await q("select public.dashboard_stats(30) as s")).rows[0].s);
+    expect(none).toEqual({});
+  });
+
+  it("de dagelijkse samenvatting vereist het servergeheim", async () => {
+    await asUser(db, null, async ({ deny, q }) => {
+      await deny("select public.server_admin_digest('fout-geheim')");
+      const rows = (await q("select public.server_admin_digest($1) as d", [SERVER_SECRET])).rows[0].d;
+      expect(rows.length).toBeGreaterThanOrEqual(2);
+      expect(rows[0]).toHaveProperty("admins");
+    });
+  });
+
+  it("alt-teksten kunnen door een makelaar worden gezet, niet door een redacteur", async () => {
+    await asUser(db, redacteurA, async ({ q }) => {
+      const r = await q("update public.property_documents set alt_text_nl = 'x' where id = $1", [documentA]);
+      expect(r.rowCount).toBe(0);
+    });
+    await asUser(db, makelaarA, async ({ q }) => {
+      const r = await q("update public.property_documents set alt_text_nl = 'Woonkamer met erker', storage_path = 'hack' where id = $1 returning alt_text_nl, storage_path", [documentA]);
+      expect(r.rows[0].alt_text_nl).toBe("Woonkamer met erker");
+      expect(r.rows[0].storage_path).not.toBe("hack");
+    });
+  });
+});

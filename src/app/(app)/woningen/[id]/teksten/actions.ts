@@ -1,12 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireSession } from "@/lib/auth/session";
 import { AppError, fromDbError, runAction, type ActionResult } from "@/lib/errors";
 import { normalizeHashtags, sanitizeContentHtml, slugify } from "@/lib/content/html";
 import type { ContentVersionRow } from "@/lib/db-types";
+import { appBaseUrl, mailConfigured, sendMail } from "@/lib/mail";
+import { CHANNEL_LABELS, LANGUAGE_LABELS } from "@/lib/domain/labels";
 
 const saveSchema = z.object({
   propertyId: z.uuid(),
@@ -88,11 +92,17 @@ export async function setTextStatus(input: { versionId: string; status: "concept
   return runAction(async () => {
     const parsed = z.object({ versionId: z.uuid(), status: z.enum(["concept", "ter_controle", "goedgekeurd"]) }).safeParse(input);
     if (!parsed.success) throw new AppError("ongeldige_invoer", "Ongeldige invoer.");
-    await requireSession(parsed.data.status === "goedgekeurd" ? "texts.approve" : "texts.submit");
+    const session = await requireSession(parsed.data.status === "goedgekeurd" ? "texts.approve" : "texts.submit");
     const supabase = await createClient();
     const { data, error } = await supabase.rpc("set_content_status", { p_version_id: parsed.data.versionId, p_status: parsed.data.status });
     if (error) throw fromDbError(error);
     const row = data as ContentVersionRow;
+    if (row.status === "ter_controle" && mailConfigured()) {
+      const h = await headers();
+      const origin = `https://${h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000"}`;
+      // Na het antwoord: goedkeurders mailen (de medewerker wacht hier niet op).
+      after(() => notifyApprovers(supabase, row, session.userId, session.approvalRoles, appBaseUrl(origin)));
+    }
     revalidatePath(`/woningen/${row.property_id}`, "layout");
     revalidatePath("/dashboard");
     return row;
@@ -126,4 +136,45 @@ export async function logCopy(input: { versionId: string; what: "tekst" | "hasht
   if (!session) return;
   const supabase = await createClient();
   await supabase.rpc("log_event", { p_action: "gekopieerd", p_entity_type: "content_version", p_entity_id: parsed.data.versionId, p_metadata: { onderdeel: parsed.data.what } });
+}
+
+/** Mailt collega's met goedkeuringsrechten dat er een tekst ter goedkeuring klaarstaat. */
+async function notifyApprovers(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  row: ContentVersionRow,
+  submitterId: string,
+  approvalRoles: string[],
+  baseUrl: string,
+) {
+  const [{ data: members }, { data: property }] = await Promise.all([
+    supabase.from("organization_memberships").select("user_id, role, profiles!inner(email, full_name)").eq("is_active", true).in("role", approvalRoles),
+    supabase.from("properties").select("address, house_number, addition, city").eq("id", row.property_id).maybeSingle(),
+  ]);
+  const to = (members ?? [])
+    .filter((m) => m.user_id !== submitterId)
+    .map((m) => (m as unknown as { profiles: { email: string } }).profiles.email);
+  if (!to.length) return;
+  const label = property ? [property.address, property.house_number, property.addition].filter(Boolean).join(" ") + (property.city ? `, ${property.city}` : "") : "een woning";
+  const slot = `${CHANNEL_LABELS[row.channel]} ${LANGUAGE_LABELS[row.language].toLowerCase()}`;
+  await sendMail({
+    to,
+    subject: `Ter goedkeuring: ${slot} – ${label}`,
+    lines: [`Er staat een tekst klaar om te beoordelen: ${slot} voor ${label} (versie ${row.version_number}).`],
+    link: { href: `${baseUrl}/woningen/${row.property_id}/teksten`, label: "Tekst openen in Woningtekst Studio" },
+  });
+}
+
+export type PresenceEntry = { userId: string; name: string; slot: string };
+
+/** Hartslag: registreert dat de gebruiker deze woning bewerkt en geeft andere actieve collega's terug. */
+export async function touchPresence(input: { propertyId: string; slot: string }): Promise<ActionResult<PresenceEntry[]>> {
+  return runAction(async () => {
+    await requireSession();
+    const parsed = z.object({ propertyId: z.uuid(), slot: z.string().regex(/^(funda|website|facebook|instagram):(nl|en)$/) }).safeParse(input);
+    if (!parsed.success) throw new AppError("ongeldige_invoer", "Ongeldige invoer.");
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("touch_presence", { p_property_id: parsed.data.propertyId, p_slot: parsed.data.slot });
+    if (error) throw fromDbError(error);
+    return ((data ?? []) as { user_id: string; full_name: string; slot: string }[]).map((r) => ({ userId: r.user_id, name: r.full_name, slot: r.slot }));
+  });
 }
