@@ -10,7 +10,8 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { execSync } from "node:child_process";
 import pg from "pg";
 
-const status = JSON.parse(execSync("npx supabase status -o json", { stdio: ["ignore", "pipe", "ignore"] }).toString());
+const CLI = process.env.SUPABASE_CLI ?? "npx supabase";
+const status = JSON.parse(execSync(`${CLI} status -o json`, { stdio: ["ignore", "pipe", "ignore"] }).toString());
 const API = status.API_URL;
 if (!/127\.0\.0\.1|localhost/.test(API)) {
   console.error("Weigering: dit script is alleen voor een lokale Supabase-stack.");

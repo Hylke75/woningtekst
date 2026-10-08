@@ -8,6 +8,7 @@ import { extractSource, MAX_SOURCE_CHARS } from "@/lib/documents/extract-text";
 import { FIELD_BY_KEY, fieldValueSchema } from "@/lib/domain/property-fields";
 import { getFieldValue, patchToRpcArgs } from "@/lib/domain/property-mapping";
 import { AppError, fromDbError } from "@/lib/errors";
+import { serverEnv } from "@/lib/env";
 import type { ServerSupabase } from "@/lib/supabase/server";
 import type { SessionContext } from "@/lib/auth/session";
 import type { DocumentRow, FactRow, PropertyRow } from "@/lib/db-types";
@@ -226,7 +227,7 @@ export async function runExtraction(args: {
       propertyId: property.id,
       jobId: job.id,
       maxTokens: 16000,
-      model: undefined,
+      model: serverEnv().ANTHROPIC_EXTRACTION_MODEL,
       mockInput: mockProfile(property),
     });
 

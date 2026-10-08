@@ -37,7 +37,9 @@ let cached: ServerEnv | null = null;
 
 export function serverEnv(): ServerEnv {
   if (cached) return cached;
-  const parsed = serverSchema.safeParse(process.env);
+  // Lege waarden (bijv. "ANTHROPIC_API_KEY=" in .env) gelden als niet ingesteld.
+  const raw = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== undefined && v !== ""));
+  const parsed = serverSchema.safeParse(raw);
   if (!parsed.success) {
     const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
     throw new Error(`Ongeldige of ontbrekende serverconfiguratie: ${fields}`);

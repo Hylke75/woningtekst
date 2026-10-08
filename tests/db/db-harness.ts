@@ -14,6 +14,7 @@ const ROOT = path.resolve(__dirname, "../..");
 export const SERVER_SECRET = "test-server-secret-" + "x".repeat(40);
 
 export function adminUrl(db = "postgres") {
+  // Lokaal: PostgreSQL via unix-socket; in CI via TEST_DATABASE_URL (service container).
   const base = process.env.TEST_DATABASE_URL ?? "postgresql://postgres@localhost:54329/postgres?host=/tmp";
   const url = new URL(base.replace("postgresql://", "http://"));
   url.pathname = "/" + db;

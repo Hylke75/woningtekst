@@ -32,7 +32,7 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: "npx next dev -p 3000",
+        command: process.env.CI ? "npm run start -- -p 3000" : "npx next dev -p 3000",
         url: "http://localhost:3000/inloggen",
         reuseExistingServer: true,
         timeout: 120_000,
