@@ -1,0 +1,54 @@
+# Dependabot: automatische update-PR's voor npm-pakketten en GitHub Actions.
+# Major-updates komen als losse PR's (die vragen meestal handwerk); minor/patch
+# worden gebundeld. Supabase en Next.js/React hebben een eigen groep omdat die
+# samen getest moeten worden (zie AGENTS.md: Next.js-versies bevatten breaking changes).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Amsterdam
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+    groups:
+      supabase:
+        patterns:
+          - "@supabase/*"
+      next-react:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      minor-en-patch:
+        update-types:
+          - minor
+          - patch
+        exclude-patterns:
+          - "@supabase/*"
+          - "next"
+          - "eslint-config-next"
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      timezone: Europe/Amsterdam
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

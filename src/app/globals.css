@@ -15,13 +15,13 @@
   --brand-bg: #f8f7f4;
   --brand-card: #ffffff;
   --brand-text: #252a2e;
-  --brand-text-muted: #667078;
+  --brand-text-muted: #5f6970; /* iets donkerder dan het eerste voorstel (#667078): WCAG AA ook op --muted */
   --brand-border: #e5e3de;
   --brand-primary: #193d4b;
   --brand-primary-hover: #285666;
   --brand-accent-subtle: #eaf0f1;
   --brand-success: #28765a;
-  --brand-warning: #ad7728;
+  --brand-warning: #8c5c18; /* donkerder dan het eerste voorstel (#ad7728) voor WCAG AA-contrast op lichte achtergronden */
   --brand-danger: #b24444;
 
   /* Semantische tokens (shadcn/ui) */

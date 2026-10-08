@@ -74,7 +74,7 @@ export default async function SettingsPage() {
           <ProfileForm fullName={session.fullName} />
           <p className="mt-3 text-xs text-muted-foreground">
             Wachtwoord wijzigen? Gebruik{" "}
-            <Link href="/wachtwoord-vergeten" className="text-primary hover:underline">
+            <Link href="/wachtwoord-vergeten" className="text-primary underline underline-offset-2 hover:no-underline">
               wachtwoord vergeten
             </Link>{" "}
             voor een herstellink.
@@ -203,7 +203,7 @@ export default async function SettingsPage() {
 
         {isAdmin ? (
           <Section title="Auditlog" description="De laatste 100 belangrijke acties. Het auditlog kan niet worden gewijzigd of verwijderd.">
-            <div className="max-h-[480px] overflow-auto rounded-lg border">
+            <div className="max-h-[480px] overflow-auto rounded-lg border" tabIndex={0} role="region" aria-label="Auditlog (scrollbaar)">
               <Table>
                 <TableHeader>
                   <TableRow>
