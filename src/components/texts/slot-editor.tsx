@@ -46,6 +46,7 @@ import { EditorToolbar, RichEditorContent, useRichEditor } from "./rich-editor";
 import { api, newIdempotencyKey } from "@/lib/client-api";
 import { escapeHtml, htmlToPlainText, normalizeHashtags, wordCount } from "@/lib/content/html";
 import { readability } from "@/lib/content/readability";
+import { styleFromPromptVersion, WRITING_STYLES, type WritingStyle } from "@/lib/content/writing-styles";
 import { CHANNEL_SPECS } from "@/lib/content/validators";
 import { CHANNEL_LABELS, CONTENT_SOURCE_LABELS, CONTENT_STATUS_LABELS, LANGUAGE_LABELS } from "@/lib/domain/labels";
 import { formatDateTime } from "@/lib/format";
@@ -87,6 +88,7 @@ export function SlotEditor({
   permissions,
   onDirtyChange,
   archived,
+  writingStyle = "schrijfwijzer",
 }: {
   propertyId: string;
   channel: Channel;
@@ -97,6 +99,7 @@ export function SlotEditor({
   permissions: SlotPermissions;
   onDirtyChange: (dirty: boolean) => void;
   archived: boolean;
+  writingStyle?: WritingStyle;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -172,7 +175,14 @@ export function SlotEditor({
   async function regenerate() {
     setBusy("regenerate");
     const res = await api<{ result: { versionNumber: number } }>(`/api/woningen/${propertyId}/teksten/hergenereer`, {
-      body: { idempotencyKey: newIdempotencyKey("regen"), channel, language, expectedVersion: latest?.version_number ?? 0, instruction: instruction.trim() || undefined },
+      body: {
+        idempotencyKey: newIdempotencyKey("regen"),
+        channel,
+        language,
+        expectedVersion: latest?.version_number ?? 0,
+        instruction: instruction.trim() || undefined,
+        schrijfstijl: writingStyle,
+      },
     });
     setBusy(null);
     if (res.ok) {
@@ -282,6 +292,7 @@ export function SlotEditor({
                 </StatusBadge>
                 <span className="text-xs text-muted-foreground">
                   v{latest.version_number} · {CONTENT_SOURCE_LABELS[latest.source]}
+                  {styleFromPromptVersion(latest.prompt_version) ? ` · stijl ${WRITING_STYLES[styleFromPromptVersion(latest.prompt_version)!].label}` : ""}
                   {latest.style_guide_version ? ` · schrijfwijzer v${latest.style_guide_version}` : ""}
                 </span>
               </>
@@ -316,6 +327,7 @@ export function SlotEditor({
             {permissions.regenerate && !archived ? (
               <Button size="sm" variant="outline" onClick={() => guarded({ kind: "regenerate" })} disabled={anyBusy}>
                 {busy === "regenerate" ? <Loader2 className="animate-spin" /> : <RefreshCw />} Opnieuw genereren
+                {writingStyle !== "schrijfwijzer" ? ` (${WRITING_STYLES[writingStyle].label.split(" ")[0]})` : ""}
               </Button>
             ) : null}
             {editable && latest ? (
@@ -506,6 +518,9 @@ export function SlotEditor({
                   <span className="text-sm font-semibold">Versie {v.version_number}</span>
                   <StatusBadge tone={v.status === "goedgekeurd" ? "success" : v.status === "ter_controle" ? "warning" : "neutral"}>{CONTENT_STATUS_LABELS[v.status]}</StatusBadge>
                   <span className="text-xs text-muted-foreground">{CONTENT_SOURCE_LABELS[v.source]}</span>
+                  {styleFromPromptVersion(v.prompt_version) ? (
+                    <StatusBadge tone="primary">{WRITING_STYLES[styleFromPromptVersion(v.prompt_version)!].label}</StatusBadge>
+                  ) : null}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {formatDateTime(v.created_at)} · {names[v.edited_by ?? v.generated_by ?? ""] ?? "onbekend"}

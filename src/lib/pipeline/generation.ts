@@ -12,6 +12,7 @@ import {
 } from "@/lib/ai/prompts";
 import type { AiContentBlock } from "@/lib/ai/transport";
 import { serverEnv } from "@/lib/env";
+import { isWritingStyle, promptVersionWithStyle, styleBlock, WRITING_STYLES, type WritingStyle } from "@/lib/content/writing-styles";
 import {
   analysisSchema,
   languageTextsSchema,
@@ -68,8 +69,18 @@ export function mockProfile(p: PropertyRow): MockProfile {
 }
 
 /** Vingerafdruk van alle invoer van een volledige generatie. */
-export function generationInputHash(property: PropertyRow, styleGuideId: string, overwriteSlots: string[]) {
-  return hashInput({ profile: profileForPrompt(property), guide: styleGuideId, overwrite: overwriteSlots });
+export function generationInputHash(property: PropertyRow, styleGuideId: string, overwriteSlots: string[], style: WritingStyle = "schrijfwijzer") {
+  // Standaardstijl houdt de oorspronkelijke hash (bestaande jobs blijven hervatbaar).
+  return hashInput(
+    style === "schrijfwijzer"
+      ? { profile: profileForPrompt(property), guide: styleGuideId, overwrite: overwriteSlots }
+      : { profile: profileForPrompt(property), guide: styleGuideId, overwrite: overwriteSlots, style },
+  );
+}
+
+export function jobStyle(job: JobRow): WritingStyle {
+  const v = job.params?.schrijfstijl;
+  return isWritingStyle(v) ? v : "schrijfwijzer";
 }
 
 /** Voorwaarden vóór een (betaalde) volledige generatie. */
@@ -182,7 +193,8 @@ export async function runNextGenerationStep(supabase: ServerSupabase, jobId: str
     const property = propertyData as PropertyRow;
     if (!claimed.style_guide_id) throw new AppError("configuratie", "Er is geen actieve schrijfwijzer.");
     // Alle stappen moeten op dezelfde gegevens gebaseerd zijn (NL en EN inhoudelijk gelijk).
-    if (generationInputHash(property, claimed.style_guide_id, (claimed.params?.overwriteSlots as string[] | undefined) ?? []) !== claimed.input_hash) {
+    const style = jobStyle(claimed);
+    if (generationInputHash(property, claimed.style_guide_id, (claimed.params?.overwriteSlots as string[] | undefined) ?? [], style) !== claimed.input_hash) {
       throw new AppError("conflict", "De woninggegevens of de schrijfwijzer zijn gewijzigd sinds de start. Start de generatie opnieuw.");
     }
     const guide = await getStyleGuide(supabase, claimed.style_guide_id);
@@ -192,7 +204,17 @@ export async function runNextGenerationStep(supabase: ServerSupabase, jobId: str
     // stap 2 t/m 5 de systeeminstructie én deze context uit de prompt-cache lezen.
     const context: AiContentBlock = { type: "text", text: generationContext(profileForPrompt(property), examples), cache: true };
     const common = { supabase, propertyId: property.id, jobId, mockInput: mockProfile(property), system };
-    const task = (t: GenerationTask, data: string) => `<taak>\n${GENERATION_TASKS[t]}\n</taak>${data ? `\n\n${data}` : ""}`;
+    const styleText = styleBlock(style);
+    const task = (t: GenerationTask, data: string) => {
+      // De gekozen schrijfstijl geldt voor het schrijven; de controle weet dat de stijl bewust is gekozen.
+      const extra =
+        styleText && (t === "nederlands" || t === "engels")
+          ? `\n\n${styleText}${t === "engels" ? "\nPas deze schrijfstijl even uitgesproken toe in natuurlijk Engels." : ""}`
+          : styleText && t === "controle"
+            ? `\n\nDe teksten zijn bewust geschreven in de schrijfstijl "${WRITING_STYLES[style].label}". Meld geen bevindingen over toon, lengte, clichés of zinsbouw die bij die stijl horen; controleer feiten, consistentie, privacy en juridische aspecten wel volledig.`
+            : "";
+      return `<taak>\n${GENERATION_TASKS[t]}\n</taak>${extra}${data ? `\n\n${data}` : ""}`;
+    };
 
     let output: unknown;
     switch (step) {
@@ -276,7 +298,7 @@ export async function runNextGenerationStep(supabase: ServerSupabase, jobId: str
           ],
           maxTokens: 12000,
         });
-        output = { ai: r.data, checks: deterministicChecks(property, guide, steps) };
+        output = { ai: r.data, checks: deterministicChecks(property, guide, steps, style) };
         break;
       }
       case "opslaan": {
@@ -354,10 +376,11 @@ export async function loadExamples(supabase: ServerSupabase, propertyId: string)
   return picked;
 }
 
-export function deterministicChecks(property: PropertyRow, guide: StyleGuideRow, steps: Steps): Finding[] {
+export function deterministicChecks(property: PropertyRow, guide: StyleGuideRow, steps: Steps, style: WritingStyle = "schrijfwijzer"): Finding[] {
   const findings: Finding[] = [];
   const ctx = {
     forbiddenPhrases: forbiddenPhrases(guide.content),
+    customStyle: style !== "schrijfwijzer",
     doNotMention: doNotMention(property, steps.analyse),
     allowedContacts: allowedContacts(property),
     priceOnSocial: getFieldValue(property, "publicatie.prijs_op_social") === true,
@@ -429,7 +452,7 @@ async function saveGeneratedTexts(
       p_hashtags: hashtagsFor(channel, language, steps.seo, extra),
       p_generation_job_id: job.id,
       p_style_guide_id: guide.id,
-      p_prompt_version: PROMPT_VERSION,
+      p_prompt_version: promptVersionWithStyle(PROMPT_VERSION, jobStyle(job)),
     });
     if (error) throw fromDbError(error);
     versionIds[key] = (data as { id: string }).id;

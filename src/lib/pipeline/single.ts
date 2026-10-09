@@ -21,6 +21,7 @@ import { getActiveStyleGuide, latestVersions } from "@/lib/data/content";
 import { claimJob, createOrGetJob, failJob, hashInput, updateJob } from "@/lib/pipeline/jobs";
 import { mockProfile } from "@/lib/pipeline/generation";
 import { serverEnv } from "@/lib/env";
+import { promptVersionWithStyle, styleBlock, type WritingStyle } from "@/lib/content/writing-styles";
 
 /** Korte social-teksten gaan via het lichtere model; Funda en website via het hoofdmodel. */
 function modelFor(channel: Channel): string | undefined {
@@ -85,6 +86,7 @@ async function saveVersion(
     expectedVersion: number | null;
     jobId: string;
     styleGuideId: string;
+    style?: WritingStyle;
   },
 ): Promise<ContentVersionRow> {
   const { data, error } = await supabase.rpc("save_content_version", {
@@ -102,17 +104,25 @@ async function saveVersion(
     p_hashtags: args.base?.hashtags ?? [],
     p_generation_job_id: args.jobId,
     p_style_guide_id: args.styleGuideId,
-    p_prompt_version: PROMPT_VERSION,
+    p_prompt_version: promptVersionWithStyle(PROMPT_VERSION, args.style ?? "schrijfwijzer"),
   });
   if (error) throw fromDbError(error);
   return data as ContentVersionRow;
 }
 
-async function recordChecks(supabase: ServerSupabase, property: PropertyRow, version: ContentVersionRow, guideContent: string, jobId: string) {
+async function recordChecks(
+  supabase: ServerSupabase,
+  property: PropertyRow,
+  version: ContentVersionRow,
+  guideContent: string,
+  jobId: string,
+  style: WritingStyle = "schrijfwijzer",
+) {
   const findings = checkText(
     { channel: version.channel, language: version.language, html: version.content, hashtags: version.hashtags },
     {
       forbiddenPhrases: forbiddenPhrases(guideContent),
+      customStyle: style !== "schrijfwijzer",
       doNotMention: String(getFieldValue(property, "positionering.niet_noemen") ?? "")
         .split(/\n|;/)
         .map((s) => s.trim())
@@ -138,8 +148,9 @@ async function recordChecks(supabase: ServerSupabase, property: PropertyRow, ver
 }
 
 /** Genereert één tekst opnieuw; andere teksten blijven onaangeroerd. */
-export async function regenerateOne(args: SingleArgs & { instruction?: string }) {
+export async function regenerateOne(args: SingleArgs & { instruction?: string; schrijfstijl?: WritingStyle }) {
   const { supabase, session, property, channel, language } = args;
+  const style = args.schrijfstijl ?? "schrijfwijzer";
   const guide = await getActiveStyleGuide(supabase);
   const latest = await latestVersions(supabase, property.id);
   const current = latest.get(`${channel}:${language}`);
@@ -150,8 +161,8 @@ export async function regenerateOne(args: SingleArgs & { instruction?: string })
     propertyId: property.id,
     jobType: "enkele_hergeneratie",
     idempotencyKey: args.idempotencyKey,
-    params: { channel, language, instruction: args.instruction ?? null },
-    inputHash: hashInput({ p: property.updated_at, channel, language, instruction: args.instruction, g: guide.id }),
+    params: { channel, language, instruction: args.instruction ?? null, schrijfstijl: style },
+    inputHash: hashInput({ p: property.updated_at, channel, language, instruction: args.instruction, g: guide.id, s: style }),
   });
   const schema = channel === "funda" ? singleFundaSchema : channel === "website" ? singleWebsiteSchema : singleSocialSchema;
   return runSingleJob(supabase, job, created, async () => {
@@ -169,6 +180,7 @@ export async function regenerateOne(args: SingleArgs & { instruction?: string })
             current ? `<huidige_tekst>\n${htmlToPlainText(current.content)}\n</huidige_tekst>` : "",
             counterpart ? `<tegenhanger>\n${htmlToPlainText(counterpart.content)}\n</tegenhanger>` : "",
             args.instruction ? `<instructie>\n${args.instruction}\n</instructie>` : "",
+            styleBlock(style),
           ]
             .filter(Boolean)
             .join("\n\n"),
@@ -191,8 +203,9 @@ export async function regenerateOne(args: SingleArgs & { instruction?: string })
       expectedVersion: args.expectedVersion,
       jobId: job.id,
       styleGuideId: guide.id,
+      style,
     });
-    await recordChecks(supabase, property, version, guide.content, job.id);
+    await recordChecks(supabase, property, version, guide.content, job.id, style);
     return { versionId: version.id, versionNumber: version.version_number };
   });
 }

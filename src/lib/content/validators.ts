@@ -41,6 +41,8 @@ export type CheckContext = {
   doNotMention: string[];
   allowedContacts: string[];
   priceOnSocial: boolean;
+  /** Bewust gekozen afwijkende schrijfstijl: lengte- en stijlwaarschuwingen van de schrijfwijzer vervallen. */
+  customStyle?: boolean;
   /** Voor Funda: tekst minus de letterlijk toegevoegde NVM-passages telt mee voor de lengte. */
   closingPassages?: string[];
 };
@@ -57,7 +59,9 @@ export function checkText(t: TextUnderCheck, ctx: CheckContext): Finding[] {
   const words = wordCount(plain);
   const base = { channel: t.channel, language: t.language } as const;
 
-  if (words < spec.minWords) {
+  if (ctx.customStyle) {
+    // Lengte volgt de gekozen schrijfstijl; geen waarschuwing.
+  } else if (words < spec.minWords) {
     findings.push({ ...base, severity: t.channel === "funda" ? "info" : "waarschuwing", category: "lengte", description: `Tekst telt ${words} woorden; richtlijn is ${spec.minWords}–${spec.maxWords}.` });
   } else if (words > spec.maxWords * (t.channel === "funda" ? 1.5 : 1.15)) {
     findings.push({ ...base, severity: "waarschuwing", category: "lengte", description: `Tekst telt ${words} woorden; richtlijn is ${spec.minWords}–${spec.maxWords}.` });
@@ -67,7 +71,7 @@ export function checkText(t: TextUnderCheck, ctx: CheckContext): Finding[] {
     findings.push({ ...base, severity: "kritiek", category: "stijl", description: "De tekst bevat emoji's; die zijn niet toegestaan." });
   }
 
-  for (const phrase of ctx.forbiddenPhrases) {
+  for (const phrase of ctx.customStyle ? [] : ctx.forbiddenPhrases) {
     if (phraseRegex(phrase).test(plain)) {
       findings.push({ ...base, severity: "waarschuwing", category: "stijl", description: `Vermijd de formulering "${phrase}" (schrijfwijzer).`, source: phrase });
     }

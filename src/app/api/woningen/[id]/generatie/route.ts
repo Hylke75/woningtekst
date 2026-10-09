@@ -10,6 +10,7 @@ import { assertReadyForGeneration, generationInputHash, protectedSlots } from "@
 import { createOrGetJob, publicJob } from "@/lib/pipeline/jobs";
 import { continueGenerationInBackground } from "@/lib/pipeline/background";
 import type { JobRow } from "@/lib/db-types";
+import { WRITING_STYLE_KEYS } from "@/lib/content/writing-styles";
 
 /** De eerste stappen kunnen direct na het antwoord in deze aanroep worden uitgevoerd. */
 export const maxDuration = 300;
@@ -19,6 +20,7 @@ const slotKeys = SLOTS.map((s) => s.key) as [string, ...string[]];
 const bodySchema = z.object({
   idempotencyKey: idempotencyKeySchema,
   overwriteSlots: z.array(z.enum(slotKeys)).max(8).default([]),
+  schrijfstijl: z.enum(WRITING_STYLE_KEYS).default("schrijfwijzer"),
 });
 
 /** Status van de laatste volledige generatie en welke teksten beschermd zijn. */
@@ -59,8 +61,8 @@ export const POST = route<RouteContext<"/api/woningen/[id]/generatie">>(async (r
     propertyId: property.id,
     jobType: "volledige_generatie",
     idempotencyKey: body.idempotencyKey,
-    params: { overwriteSlots: body.overwriteSlots },
-    inputHash: generationInputHash(property, guide.id, body.overwriteSlots),
+    params: { overwriteSlots: body.overwriteSlots, schrijfstijl: body.schrijfstijl },
+    inputHash: generationInputHash(property, guide.id, body.overwriteSlots, body.schrijfstijl),
   });
   // Start de verwerking direct op de server; de browser hoeft niet open te blijven.
   if (job.status === "wachtrij") continueGenerationInBackground(req, supabase, job.id, startedAt);

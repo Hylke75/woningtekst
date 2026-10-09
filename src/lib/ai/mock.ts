@@ -86,6 +86,25 @@ function profileFrom(req: AiRequest): MockProfile {
   return { street: p.street ?? "de woning", city: p.city ?? "Den Haag", type: p.type ?? "woning", ...p } as MockProfile;
 }
 
+const STYLE_OPENERS: Record<string, { nl: string; en: string }> = {
+  Wim: { nl: "Kerngegevens.", en: "Key facts." },
+  Vivianne: { nl: "Wat een heerlijke plek!", en: "What a wonderful place!" },
+  "Anne-Louise": { nl: "Er bestaan huizen die als een zacht gedicht in het straatbeeld rusten.", en: "Some homes rest in the streetscape like a quiet poem." },
+};
+
+/** Testmodus: maakt de gekozen schrijfstijl zichtbaar met een herkenbare openingszin. */
+function withStyle<T>(req: AiRequest, lang: "nl" | "en", texts: T): T {
+  const m = textOf(req).match(/<schrijfstijl naam="(Wim|Vivianne|Anne-Louise)/);
+  if (!m) return texts;
+  const opener = STYLE_OPENERS[m[1]][lang];
+  const t = structuredClone(texts) as { funda?: { introductie: string[] }; website?: { alineas: string[] }; facebook?: { tekst: string }; instagram?: { tekst: string } };
+  if (t.funda) t.funda.introductie[0] = `${opener} ${t.funda.introductie[0]}`;
+  if (t.website) t.website.alineas[0] = `${opener} ${t.website.alineas[0]}`;
+  if (t.facebook) t.facebook.tekst = `${opener} ${t.facebook.tekst}`;
+  if (t.instagram) t.instagram.tekst = `${opener} ${t.instagram.tekst}`;
+  return t as T;
+}
+
 function languageTexts(p: MockProfile, lang: "nl" | "en") {
   const nl = lang === "nl";
   const area = p.livingArea ? (nl ? `${p.livingArea} m² woonoppervlakte` : `${p.livingArea} m² of living space`) : nl ? "royale woonoppervlakte" : "generous living space";
@@ -144,9 +163,9 @@ export async function mockComplete(req: AiRequest): Promise<AiResponse> {
         foto_waarnemingen: req.content.some((c) => c.type === "image") ? [{ ruimte: "woonkamer", waarneming: "Veel daglicht" }] : [],
       });
     case "nederlands":
-      return response(req, languageTexts(p, "nl"));
+      return response(req, withStyle(req, "nl", languageTexts(p, "nl")));
     case "engels":
-      return response(req, languageTexts(p, "en"));
+      return response(req, withStyle(req, "en", languageTexts(p, "en")));
     case "seo": {
       const slugBase = `${p.type}-${p.street}-${p.city}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const set = (extra: string[]) => ["#KorffdeGidts", `#${p.city.replace(/\s/g, "")}`, ...extra];
@@ -169,7 +188,7 @@ export async function mockComplete(req: AiRequest): Promise<AiResponse> {
       return response(req, { samenvatting: "Geen inhoudelijke afwijkingen gevonden (testmodus).", bevindingen: [] });
     case "hergeneratie": {
       const job = (req.mockInput ?? {}) as { channel?: string; language?: "nl" | "en" };
-      const texts = languageTexts(p, job.language ?? "nl");
+      const texts = withStyle(req, job.language ?? "nl", languageTexts(p, job.language ?? "nl"));
       if (job.channel === "funda") return response(req, { funda: texts.funda });
       if (job.channel === "website") return response(req, { website: texts.website });
       return response(req, { tekst: job.channel === "facebook" ? texts.facebook.tekst : texts.instagram.tekst });

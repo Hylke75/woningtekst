@@ -129,3 +129,19 @@ describe("leesbaarheid", () => {
     expect(readability("Te koop.", "nl")).toBeNull();
   });
 });
+
+describe("schrijfstijlen", () => {
+  it("zijn uitgesproken verschillend en worden herleidbaar in de promptversie vastgelegd", async () => {
+    const { WRITING_STYLES, WRITING_STYLE_KEYS, promptVersionWithStyle, styleFromPromptVersion, styleBlock } = await import("@/lib/content/writing-styles");
+    const { PROMPT_VERSION } = await import("@/lib/ai/prompts");
+    expect(WRITING_STYLES.zakelijk.instruction).toMatch(/Geen uitroeptekens/);
+    expect(WRITING_STYLES.vrolijk.instruction).toMatch(/uitroeptekens/);
+    expect(WRITING_STYLES.wollig.instruction).toMatch(/30–45 woorden/);
+    expect(styleBlock("schrijfwijzer")).toBe("");
+    for (const key of WRITING_STYLE_KEYS) {
+      const pv = promptVersionWithStyle(PROMPT_VERSION, key);
+      expect(pv.length).toBeLessThanOrEqual(40);
+      expect(styleFromPromptVersion(pv)).toBe(key === "schrijfwijzer" ? null : key);
+    }
+  });
+});

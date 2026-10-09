@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { api, newIdempotencyKey } from "@/lib/client-api";
 import { formatDateTime } from "@/lib/format";
+import { WRITING_STYLE_KEYS, WRITING_STYLES, type WritingStyle } from "@/lib/content/writing-styles";
+import { cn } from "@/lib/utils";
 import { CHANNEL_LABELS, LANGUAGE_LABELS } from "@/lib/domain/labels";
 import type { Channel, Language } from "@/lib/db-types";
 import type { PublicJob } from "@/lib/pipeline/jobs";
@@ -48,6 +50,8 @@ export function GenerationPanel({
   canGenerate,
   blockers,
   hasUnsavedChanges,
+  writingStyle,
+  onWritingStyleChange,
 }: {
   propertyId: string;
   initialJob: PublicJob | null;
@@ -55,6 +59,8 @@ export function GenerationPanel({
   canGenerate: boolean;
   blockers: string[];
   hasUnsavedChanges: boolean;
+  writingStyle: WritingStyle;
+  onWritingStyleChange: (style: WritingStyle) => void;
 }) {
   const router = useRouter();
   const [job, setJob] = useState<PublicJob | null>(initialJob);
@@ -114,7 +120,7 @@ export function GenerationPanel({
   async function start() {
     setDialogOpen(false);
     const res = await api<{ job: PublicJob }>(`/api/woningen/${propertyId}/generatie`, {
-      body: { idempotencyKey: newIdempotencyKey("gen"), overwriteSlots: [...overwrite] },
+      body: { idempotencyKey: newIdempotencyKey("gen"), overwriteSlots: [...overwrite], schrijfstijl: writingStyle },
     });
     if (!res.ok) {
       toast.error(res.error.message);
@@ -150,6 +156,36 @@ export function GenerationPanel({
           </Button>
         ) : null}
       </div>
+
+      {canGenerate ? (
+        <fieldset className="mt-4">
+          <legend className="mb-2 text-sm font-medium">Schrijfstijl</legend>
+          <div role="radiogroup" aria-label="Schrijfstijl" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {WRITING_STYLE_KEYS.map((key) => {
+              const def = WRITING_STYLES[key];
+              const selected = writingStyle === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={running}
+                  onClick={() => onWritingStyleChange(key)}
+                  className={cn(
+                    "rounded-lg border px-3 py-2 text-left transition-colors",
+                    selected ? "border-primary bg-accent ring-2 ring-primary/20" : "bg-card hover:border-primary/30",
+                  )}
+                >
+                  <span className="block text-sm font-medium">{def.label}</span>
+                  <span className="block text-xs text-muted-foreground">{def.hint}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">Geldt voor &ldquo;Alle teksten genereren&rdquo; en voor &ldquo;Opnieuw genereren&rdquo; per tekst. Feiten en privacyregels zijn bij elke stijl gelijk.</p>
+        </fieldset>
+      ) : null}
 
       {blockers.length && canGenerate ? (
         <ul className="mt-3 space-y-1 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning">
@@ -212,6 +248,9 @@ export function GenerationPanel({
             <AlertDialogTitle>Alle teksten genereren?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  Schrijfstijl: <strong className="text-foreground">{WRITING_STYLES[writingStyle].label}</strong>.
+                </p>
                 <p>Nieuwe teksten worden als nieuwe versie opgeslagen; eerdere versies blijven altijd beschikbaar in de versiegeschiedenis.</p>
                 {hasUnsavedChanges ? (
                   <p className="rounded-md bg-warning/10 px-3 py-2 text-warning">U heeft niet-opgeslagen wijzigingen in de editor. Sla die eerst op, anders gaan ze verloren als de tekst wordt vervangen.</p>

@@ -8,6 +8,7 @@ import { GenerationPanel } from "./generation-panel";
 import { SlotEditor, type SlotPermissions } from "./slot-editor";
 import { CHANNEL_LABELS, LANGUAGE_LABELS } from "@/lib/domain/labels";
 import { touchPresence, type PresenceEntry } from "@/app/(app)/woningen/[id]/teksten/actions";
+import type { WritingStyle } from "@/lib/content/writing-styles";
 import type { Channel, ContentVersionRow, Language, ReviewIssueRow } from "@/lib/db-types";
 import type { PublicJob } from "@/lib/pipeline/jobs";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,8 @@ export function TextsWorkspace({
   const [channel, setChannel] = useState<Channel>("funda");
   const [language, setLanguage] = useState<Language>("nl");
   const [dirtySlots, setDirtySlots] = useState<Set<string>>(new Set());
+  // Gekozen schrijfstijl: geldt voor de volledige generatie én voor "Opnieuw genereren" per tekst.
+  const [writingStyle, setWritingStyle] = useState<WritingStyle>("schrijfwijzer");
 
   const markDirty = useCallback((slot: string, dirty: boolean) => {
     setDirtySlots((prev) => {
@@ -87,6 +90,8 @@ export function TextsWorkspace({
         canGenerate={canGenerate && !archived}
         blockers={blockers}
         hasUnsavedChanges={dirtySlots.size > 0}
+        writingStyle={writingStyle}
+        onWritingStyleChange={setWritingStyle}
       />
 
       {others.length ? (
@@ -155,6 +160,7 @@ export function TextsWorkspace({
                   permissions={permissions}
                   onDirtyChange={(d) => markDirty(`${c}:${l}`, d)}
                   archived={archived}
+                  writingStyle={writingStyle}
                 />
               </div>
             ))}
