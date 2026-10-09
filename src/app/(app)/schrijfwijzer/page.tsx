@@ -10,13 +10,19 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { MarkdownView } from "@/components/styleguide/markdown-view";
 import { ActivateDefaultButton, ActivateVersionButton, StyleGuideEditor } from "@/components/styleguide/style-guide-admin";
 import type { StyleGuideRow } from "@/lib/db-types";
+import { listWritingStyles } from "@/lib/data/writing-styles";
+import { WritingStylesSection } from "@/components/styleguide/writing-styles-admin";
 
 export const metadata: Metadata = { title: "Schrijfwijzer" };
 
 export default async function StyleGuidePage() {
   const session = await requirePageSession();
   const supabase = await createClient();
-  const [{ data, error }, colleagues] = await Promise.all([supabase.from("style_guides").select("*").order("version", { ascending: false }), listColleagues()]);
+  const [{ data, error }, colleagues, styles] = await Promise.all([
+    supabase.from("style_guides").select("*").order("version", { ascending: false }),
+    listColleagues(),
+    listWritingStyles(supabase, { includeInactive: true }),
+  ]);
   if (error) throw fromDbError(error);
   const versions = (data ?? []) as StyleGuideRow[];
   const active = versions.find((v) => v.is_active);
@@ -42,6 +48,7 @@ export default async function StyleGuidePage() {
           ) : null}
         </div>
       ) : null}
+      <WritingStylesSection styles={styles} canEdit={isAdmin} names={names} />
       <div className="grid gap-8 xl:grid-cols-[1fr_320px]">
         <div className="min-w-0">
           {isAdmin ? (

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { idempotencyKeySchema } from "@/lib/api";
-import { WRITING_STYLE_KEYS } from "@/lib/content/writing-styles";
+import { styleChoiceSchema } from "@/lib/content/writing-styles";
 
 export const channelSchema = z.enum(["funda", "website", "facebook", "instagram"]);
 export const languageSchema = z.enum(["nl", "en"]);
@@ -11,7 +11,8 @@ export const regenerateBody = z.object({
   language: languageSchema,
   expectedVersion: z.number().int().min(0).nullable(),
   instruction: z.string().trim().max(1000).optional(),
-  schrijfstijl: z.enum(WRITING_STYLE_KEYS).default("schrijfwijzer"),
+  /** Ontbreekt: de makelaar/stijl van de woning. */
+  schrijfstijl: styleChoiceSchema.optional(),
 });
 
 export const rewriteBody = z.object({

@@ -41,6 +41,7 @@ export type Confidence = "hoog" | "middel" | "laag";
 export type IssueSeverity = "info" | "waarschuwing" | "kritiek";
 
 export type PropertyRow = {
+  writing_style_id?: string | null;
   id: string;
   organization_id: string;
   created_by: string | null;

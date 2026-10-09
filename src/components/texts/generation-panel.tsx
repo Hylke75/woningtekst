@@ -20,7 +20,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { api, newIdempotencyKey } from "@/lib/client-api";
 import { formatDateTime } from "@/lib/format";
-import { WRITING_STYLE_KEYS, WRITING_STYLES, type WritingStyle } from "@/lib/content/writing-styles";
+import { STANDARD_STYLE, STANDARD_STYLE_LABEL } from "@/lib/content/writing-styles";
+
+export type StyleOption = { id: string; label: string; description: string };
 import { cn } from "@/lib/utils";
 import { CHANNEL_LABELS, LANGUAGE_LABELS } from "@/lib/domain/labels";
 import type { Channel, Language } from "@/lib/db-types";
@@ -52,6 +54,7 @@ export function GenerationPanel({
   hasUnsavedChanges,
   writingStyle,
   onWritingStyleChange,
+  styles,
 }: {
   propertyId: string;
   initialJob: PublicJob | null;
@@ -59,8 +62,9 @@ export function GenerationPanel({
   canGenerate: boolean;
   blockers: string[];
   hasUnsavedChanges: boolean;
-  writingStyle: WritingStyle;
-  onWritingStyleChange: (style: WritingStyle) => void;
+  writingStyle: string;
+  onWritingStyleChange: (style: string) => void;
+  styles: StyleOption[];
 }) {
   const router = useRouter();
   const [job, setJob] = useState<PublicJob | null>(initialJob);
@@ -161,24 +165,23 @@ export function GenerationPanel({
         <fieldset className="mt-4">
           <legend className="mb-2 text-sm font-medium">Schrijfstijl</legend>
           <div role="radiogroup" aria-label="Schrijfstijl" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {WRITING_STYLE_KEYS.map((key) => {
-              const def = WRITING_STYLES[key];
-              const selected = writingStyle === key;
+            {[{ id: STANDARD_STYLE, label: STANDARD_STYLE_LABEL, description: "De huisstijl van Korff de Gidts" }, ...styles].map((def) => {
+              const selected = writingStyle === def.id;
               return (
                 <button
-                  key={key}
+                  key={def.id}
                   type="button"
                   role="radio"
                   aria-checked={selected}
                   disabled={running}
-                  onClick={() => onWritingStyleChange(key)}
+                  onClick={() => onWritingStyleChange(def.id)}
                   className={cn(
                     "rounded-lg border px-3 py-2 text-left transition-colors",
                     selected ? "border-primary bg-accent ring-2 ring-primary/20" : "bg-card hover:border-primary/30",
                   )}
                 >
                   <span className="block text-sm font-medium">{def.label}</span>
-                  <span className="block text-xs text-muted-foreground">{def.hint}</span>
+                  <span className="block text-xs text-muted-foreground">{def.description}</span>
                 </button>
               );
             })}
@@ -249,7 +252,7 @@ export function GenerationPanel({
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>
-                  Schrijfstijl: <strong className="text-foreground">{WRITING_STYLES[writingStyle].label}</strong>.
+                  Schrijfstijl: <strong className="text-foreground">{styles.find((x) => x.id === writingStyle)?.label ?? STANDARD_STYLE_LABEL}</strong>.
                 </p>
                 <p>Nieuwe teksten worden als nieuwe versie opgeslagen; eerdere versies blijven altijd beschikbaar in de versiegeschiedenis.</p>
                 {hasUnsavedChanges ? (

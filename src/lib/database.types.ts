@@ -261,14 +261,14 @@ isOneToOne: true
                   ]
                 },"properties": {
                   Row: {
-                    "addition": string | null,"address": string | null,"asking_price": number | null,"assigned_to": string | null,"bathrooms": number | null,"bedrooms": number | null,"city": string | null,"created_at": string,"created_by": string | null,"data_checked_at": string | null,"data_checked_by": string | null,"deleted_at": string | null,"energy_label": string | null,"facts_json": NonNullable<Json>,"floor_position": string | null,"floors": number | null,"house_number": string | null,"id": string,"listing_status": Database["public"]['Enums']["listing_status"],"living_area": number | null,"neighbourhood": string | null,"organization_id": string,"plot_area": number | null,"positioning_json": NonNullable<Json>,"postcode": string | null,"property_type": string | null,"publication_json": NonNullable<Json>,"rooms": number | null,"sale_condition": Database["public"]['Enums']["sale_condition"] | null,"toilets": number | null,"updated_at": string,"updated_by": string | null,"workflow_status": Database["public"]['Enums']["workflow_status"],"year_built": number | null
+                    "addition": string | null,"address": string | null,"asking_price": number | null,"assigned_to": string | null,"bathrooms": number | null,"bedrooms": number | null,"city": string | null,"created_at": string,"created_by": string | null,"data_checked_at": string | null,"data_checked_by": string | null,"deleted_at": string | null,"energy_label": string | null,"facts_json": NonNullable<Json>,"floor_position": string | null,"floors": number | null,"house_number": string | null,"id": string,"listing_status": Database["public"]['Enums']["listing_status"],"living_area": number | null,"neighbourhood": string | null,"organization_id": string,"plot_area": number | null,"positioning_json": NonNullable<Json>,"postcode": string | null,"property_type": string | null,"publication_json": NonNullable<Json>,"rooms": number | null,"sale_condition": Database["public"]['Enums']["sale_condition"] | null,"toilets": number | null,"updated_at": string,"updated_by": string | null,"workflow_status": Database["public"]['Enums']["workflow_status"],"writing_style_id": string | null,"year_built": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "addition"?: string | null,"address"?: string | null,"asking_price"?: number | null,"assigned_to"?: string | null,"bathrooms"?: number | null,"bedrooms"?: number | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"data_checked_at"?: string | null,"data_checked_by"?: string | null,"deleted_at"?: string | null,"energy_label"?: string | null,"facts_json"?: NonNullable<Json>,"floor_position"?: string | null,"floors"?: number | null,"house_number"?: string | null,"id"?: string,"listing_status"?: Database["public"]['Enums']["listing_status"],"living_area"?: number | null,"neighbourhood"?: string | null,"organization_id": string,"plot_area"?: number | null,"positioning_json"?: NonNullable<Json>,"postcode"?: string | null,"property_type"?: string | null,"publication_json"?: NonNullable<Json>,"rooms"?: number | null,"sale_condition"?: Database["public"]['Enums']["sale_condition"] | null,"toilets"?: number | null,"updated_at"?: string,"updated_by"?: string | null,"workflow_status"?: Database["public"]['Enums']["workflow_status"],"year_built"?: number | null
+                    "addition"?: string | null,"address"?: string | null,"asking_price"?: number | null,"assigned_to"?: string | null,"bathrooms"?: number | null,"bedrooms"?: number | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"data_checked_at"?: string | null,"data_checked_by"?: string | null,"deleted_at"?: string | null,"energy_label"?: string | null,"facts_json"?: NonNullable<Json>,"floor_position"?: string | null,"floors"?: number | null,"house_number"?: string | null,"id"?: string,"listing_status"?: Database["public"]['Enums']["listing_status"],"living_area"?: number | null,"neighbourhood"?: string | null,"organization_id": string,"plot_area"?: number | null,"positioning_json"?: NonNullable<Json>,"postcode"?: string | null,"property_type"?: string | null,"publication_json"?: NonNullable<Json>,"rooms"?: number | null,"sale_condition"?: Database["public"]['Enums']["sale_condition"] | null,"toilets"?: number | null,"updated_at"?: string,"updated_by"?: string | null,"workflow_status"?: Database["public"]['Enums']["workflow_status"],"writing_style_id"?: string | null,"year_built"?: number | null
                   }
                   Update: {
-                    "addition"?: string | null,"address"?: string | null,"asking_price"?: number | null,"assigned_to"?: string | null,"bathrooms"?: number | null,"bedrooms"?: number | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"data_checked_at"?: string | null,"data_checked_by"?: string | null,"deleted_at"?: string | null,"energy_label"?: string | null,"facts_json"?: NonNullable<Json>,"floor_position"?: string | null,"floors"?: number | null,"house_number"?: string | null,"id"?: string,"listing_status"?: Database["public"]['Enums']["listing_status"],"living_area"?: number | null,"neighbourhood"?: string | null,"organization_id"?: string,"plot_area"?: number | null,"positioning_json"?: NonNullable<Json>,"postcode"?: string | null,"property_type"?: string | null,"publication_json"?: NonNullable<Json>,"rooms"?: number | null,"sale_condition"?: Database["public"]['Enums']["sale_condition"] | null,"toilets"?: number | null,"updated_at"?: string,"updated_by"?: string | null,"workflow_status"?: Database["public"]['Enums']["workflow_status"],"year_built"?: number | null
+                    "addition"?: string | null,"address"?: string | null,"asking_price"?: number | null,"assigned_to"?: string | null,"bathrooms"?: number | null,"bedrooms"?: number | null,"city"?: string | null,"created_at"?: string,"created_by"?: string | null,"data_checked_at"?: string | null,"data_checked_by"?: string | null,"deleted_at"?: string | null,"energy_label"?: string | null,"facts_json"?: NonNullable<Json>,"floor_position"?: string | null,"floors"?: number | null,"house_number"?: string | null,"id"?: string,"listing_status"?: Database["public"]['Enums']["listing_status"],"living_area"?: number | null,"neighbourhood"?: string | null,"organization_id"?: string,"plot_area"?: number | null,"positioning_json"?: NonNullable<Json>,"postcode"?: string | null,"property_type"?: string | null,"publication_json"?: NonNullable<Json>,"rooms"?: number | null,"sale_condition"?: Database["public"]['Enums']["sale_condition"] | null,"toilets"?: number | null,"updated_at"?: string,"updated_by"?: string | null,"workflow_status"?: Database["public"]['Enums']["workflow_status"],"writing_style_id"?: string | null,"year_built"?: number | null
                   }
                   Relationships: [
                     {
@@ -277,6 +277,12 @@ isOneToOne: true
 isOneToOne: false
       referencedRelation: "organizations"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "properties_writing_style_fk"
+      columns: ["writing_style_id","organization_id"]
+isOneToOne: false
+      referencedRelation: "writing_styles"
+      referencedColumns: ["id","organization_id"]
     }
                   ]
                 },"property_documents": {
@@ -427,6 +433,26 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "style_guides_organization_id_fkey"
+      columns: ["organization_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"writing_styles": {
+                  Row: {
+                    "created_at": string,"description": string,"id": string,"instruction": string,"is_active": boolean,"label": string,"name": string,"organization_id": string,"sort_order": number,"updated_at": string,"updated_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"description"?: string,"id"?: string,"instruction": string,"is_active"?: boolean,"label": string,"name": string,"organization_id": string,"sort_order"?: number,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"description"?: string,"id"?: string,"instruction"?: string,"is_active"?: boolean,"label"?: string,"name"?: string,"organization_id"?: string,"sort_order"?: number,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "writing_styles_organization_id_fkey"
       columns: ["organization_id"]
 isOneToOne: false
       referencedRelation: "organizations"

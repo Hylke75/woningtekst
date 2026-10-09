@@ -21,7 +21,8 @@ import { getActiveStyleGuide, latestVersions } from "@/lib/data/content";
 import { claimJob, createOrGetJob, failJob, hashInput, updateJob } from "@/lib/pipeline/jobs";
 import { mockProfile } from "@/lib/pipeline/generation";
 import { serverEnv } from "@/lib/env";
-import { promptVersionWithStyle, styleBlock, type WritingStyle } from "@/lib/content/writing-styles";
+import { promptVersionWithStyle, styleBlock, type StyleChoice, type WritingStyleRow } from "@/lib/content/writing-styles";
+import { resolveWritingStyle } from "@/lib/data/writing-styles";
 
 /** Korte social-teksten gaan via het lichtere model; Funda en website via het hoofdmodel. */
 function modelFor(channel: Channel): string | undefined {
@@ -86,7 +87,7 @@ async function saveVersion(
     expectedVersion: number | null;
     jobId: string;
     styleGuideId: string;
-    style?: WritingStyle;
+    style?: WritingStyleRow | null;
   },
 ): Promise<ContentVersionRow> {
   const { data, error } = await supabase.rpc("save_content_version", {
@@ -104,7 +105,7 @@ async function saveVersion(
     p_hashtags: args.base?.hashtags ?? [],
     p_generation_job_id: args.jobId,
     p_style_guide_id: args.styleGuideId,
-    p_prompt_version: promptVersionWithStyle(PROMPT_VERSION, args.style ?? "schrijfwijzer"),
+    p_prompt_version: promptVersionWithStyle(PROMPT_VERSION, args.style ?? null),
   });
   if (error) throw fromDbError(error);
   return data as ContentVersionRow;
@@ -116,13 +117,13 @@ async function recordChecks(
   version: ContentVersionRow,
   guideContent: string,
   jobId: string,
-  style: WritingStyle = "schrijfwijzer",
+  style: WritingStyleRow | null = null,
 ) {
   const findings = checkText(
     { channel: version.channel, language: version.language, html: version.content, hashtags: version.hashtags },
     {
       forbiddenPhrases: forbiddenPhrases(guideContent),
-      customStyle: style !== "schrijfwijzer",
+      customStyle: style !== null,
       doNotMention: String(getFieldValue(property, "positionering.niet_noemen") ?? "")
         .split(/\n|;/)
         .map((s) => s.trim())
@@ -148,9 +149,9 @@ async function recordChecks(
 }
 
 /** Genereert één tekst opnieuw; andere teksten blijven onaangeroerd. */
-export async function regenerateOne(args: SingleArgs & { instruction?: string; schrijfstijl?: WritingStyle }) {
+export async function regenerateOne(args: SingleArgs & { instruction?: string; schrijfstijl?: StyleChoice }) {
   const { supabase, session, property, channel, language } = args;
-  const style = args.schrijfstijl ?? "schrijfwijzer";
+  const style = await resolveWritingStyle(supabase, args.schrijfstijl ?? property.writing_style_id ?? null);
   const guide = await getActiveStyleGuide(supabase);
   const latest = await latestVersions(supabase, property.id);
   const current = latest.get(`${channel}:${language}`);
@@ -161,8 +162,8 @@ export async function regenerateOne(args: SingleArgs & { instruction?: string; s
     propertyId: property.id,
     jobType: "enkele_hergeneratie",
     idempotencyKey: args.idempotencyKey,
-    params: { channel, language, instruction: args.instruction ?? null, schrijfstijl: style },
-    inputHash: hashInput({ p: property.updated_at, channel, language, instruction: args.instruction, g: guide.id, s: style }),
+    params: { channel, language, instruction: args.instruction ?? null, schrijfstijl: style?.id ?? null },
+    inputHash: hashInput({ p: property.updated_at, channel, language, instruction: args.instruction, g: guide.id, s: style ? [style.id, style.instruction] : null }),
   });
   const schema = channel === "funda" ? singleFundaSchema : channel === "website" ? singleWebsiteSchema : singleSocialSchema;
   return runSingleJob(supabase, job, created, async () => {

@@ -198,3 +198,35 @@ export async function analyseCorrections(idempotencyKey: string): Promise<Action
     }
   });
 }
+
+const writingStyleSchema = z.object({
+  id: z.uuid().optional(),
+  name: z.string().trim().min(1, "Vul een naam in.").max(40),
+  label: z.string().trim().min(1, "Vul een titel in.").max(80),
+  description: z.string().trim().max(200).default(""),
+  instruction: z.string().trim().min(20, "De stijlinstructie is te kort (minimaal 20 tekens).").max(8000),
+  isActive: z.boolean().default(true),
+  sortOrder: z.number().int().min(0).max(1000).default(100),
+});
+
+/** Maakt of wijzigt een schrijfstijl (alleen administrator; database dwingt dit ook af). */
+export async function saveWritingStyle(input: z.input<typeof writingStyleSchema>): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    const session = await requireSession("styleguide.edit");
+    const parsed = writingStyleSchema.safeParse(input);
+    if (!parsed.success) throw new AppError("ongeldige_invoer", parsed.error.issues[0]?.message ?? "Ongeldige invoer.");
+    const { id, name, label, description, instruction, isActive, sortOrder } = parsed.data;
+    const row = { name, label, description, instruction, is_active: isActive, sort_order: sortOrder };
+    const supabase = await createClient();
+    const res = id
+      ? await supabase.from("writing_styles").update(row).eq("id", id).select("id").maybeSingle()
+      : await supabase.from("writing_styles").insert({ ...row, organization_id: session.organizationId }).select("id").maybeSingle();
+    if (res.error) {
+      if (res.error.code === "23505") throw new AppError("ongeldige_invoer", "Er bestaat al een schrijfstijl met deze naam.");
+      throw fromDbError(res.error);
+    }
+    if (!res.data) throw new AppError("niet_gevonden", "Schrijfstijl niet gevonden.");
+    revalidatePath("/schrijfwijzer");
+    return { id: res.data.id as string };
+  });
+}

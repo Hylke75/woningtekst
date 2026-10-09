@@ -731,3 +731,34 @@ describe("twee-stapsverificatie (MFA)", () => {
     });
   });
 });
+
+describe("schrijfstijlen per makelaar", () => {
+  it("elke organisatie krijgt de drie standaardstijlen; alleen eigen stijlen zijn zichtbaar", async () => {
+    const a = await asUser(db, redacteurA, async ({ q }) => (await q("select name, organization_id from public.writing_styles order by sort_order")).rows);
+    expect(a.map((r) => r.name)).toEqual(["Wim", "Vivianne", "Anne-Louise"]);
+    expect(a.every((r) => r.organization_id === orgA)).toBe(true);
+  });
+
+  it("alleen een administrator kan stijlen wijzigen of toevoegen; organisatie is niet te wijzigen", async () => {
+    await asUser(db, makelaarA, async ({ q, deny }) => {
+      const r = await q("update public.writing_styles set label = 'gehackt' where name = 'Wim'");
+      expect(r.rowCount).toBe(0);
+      await deny("insert into public.writing_styles (organization_id, name, label, instruction) values ($1, 'X', 'X', repeat('a', 30))", [orgA]);
+    });
+    await asUser(db, adminA, async ({ q }) => {
+      const r = await q("update public.writing_styles set label = 'Wim – kort en zakelijk', organization_id = $1 where name = 'Wim' returning label, organization_id", [orgB]);
+      expect(r.rows[0]).toEqual({ label: "Wim – kort en zakelijk", organization_id: orgA });
+      await q("insert into public.writing_styles (organization_id, name, label, instruction) values ($1, 'Kees', 'Kees – poëtisch', repeat('a', 30))", [orgA]);
+    });
+  });
+
+  it("een woning kan niet aan een stijl van een andere organisatie worden gekoppeld", async () => {
+    const styleB = (await db.query("select id from public.writing_styles where organization_id = $1 limit 1", [orgB])).rows[0].id;
+    const styleA = (await db.query("select id from public.writing_styles where organization_id = $1 limit 1", [orgA])).rows[0].id;
+    await asUser(db, makelaarA, async ({ q, deny }) => {
+      await deny("update public.properties set writing_style_id = $1 where id = $2", [styleB, propertyA]);
+      const ok = await q("update public.properties set writing_style_id = $1 where id = $2 returning writing_style_id", [styleA, propertyA]);
+      expect(ok.rows[0].writing_style_id).toBe(styleA);
+    });
+  });
+});

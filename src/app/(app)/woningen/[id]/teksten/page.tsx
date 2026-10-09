@@ -11,6 +11,8 @@ import { protectedSlots } from "@/lib/pipeline/generation";
 import { publicJob } from "@/lib/pipeline/jobs";
 import { aiConfigured } from "@/lib/env";
 import { TextsWorkspace } from "@/components/texts/texts-workspace";
+import { listWritingStyles } from "@/lib/data/writing-styles";
+import { STANDARD_STYLE } from "@/lib/content/writing-styles";
 import type { ContentVersionRow, JobRow } from "@/lib/db-types";
 
 export const metadata: Metadata = { title: "Teksten" };
@@ -19,7 +21,7 @@ export default async function TextsPage({ params }: PageProps<"/woningen/[id]/te
   const session = await requirePageSession();
   const { id } = await params;
   const supabase = await createClient();
-  const [property, issues, colleagues, versionsRes, jobRes, conflictRes, prot, guideRes] = await Promise.all([
+  const [property, issues, colleagues, versionsRes, jobRes, conflictRes, prot, guideRes, styles] = await Promise.all([
     getProperty(id),
     listIssues(id),
     listColleagues(),
@@ -28,6 +30,7 @@ export default async function TextsPage({ params }: PageProps<"/woningen/[id]/te
     supabase.from("property_facts").select("id", { count: "exact", head: true }).eq("property_id", id).eq("verification_status", "conflict"),
     protectedSlots(supabase, id),
     supabase.from("style_guides").select("id").eq("is_active", true).maybeSingle(),
+    listWritingStyles(supabase),
   ]);
   if (versionsRes.error) throw fromDbError(versionsRes.error);
 
@@ -62,6 +65,8 @@ export default async function TextsPage({ params }: PageProps<"/woningen/[id]/te
       job={jobRes.data ? publicJob(jobRes.data as JobRow) : null}
       protectedSlots={prot}
       archived={Boolean(property.deleted_at)}
+      styles={styles.map((st) => ({ id: st.id, name: st.name, label: st.label, description: st.description }))}
+      defaultStyle={property.writing_style_id && styles.some((st) => st.id === property.writing_style_id) ? property.writing_style_id : STANDARD_STYLE}
     />
   );
 }

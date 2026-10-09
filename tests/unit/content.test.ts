@@ -131,17 +131,17 @@ describe("leesbaarheid", () => {
 });
 
 describe("schrijfstijlen", () => {
-  it("zijn uitgesproken verschillend en worden herleidbaar in de promptversie vastgelegd", async () => {
-    const { WRITING_STYLES, WRITING_STYLE_KEYS, promptVersionWithStyle, styleFromPromptVersion, styleBlock } = await import("@/lib/content/writing-styles");
+  it("leggen de stijl herleidbaar vast in de promptversie en bouwen een stijlblok", async () => {
+    const { promptVersionWithStyle, styleNameFromPromptVersion, styleBlock, styleChoiceSchema } = await import("@/lib/content/writing-styles");
     const { PROMPT_VERSION } = await import("@/lib/ai/prompts");
-    expect(WRITING_STYLES.zakelijk.instruction).toMatch(/Geen uitroeptekens/);
-    expect(WRITING_STYLES.vrolijk.instruction).toMatch(/uitroeptekens/);
-    expect(WRITING_STYLES.wollig.instruction).toMatch(/30–45 woorden/);
-    expect(styleBlock("schrijfwijzer")).toBe("");
-    for (const key of WRITING_STYLE_KEYS) {
-      const pv = promptVersionWithStyle(PROMPT_VERSION, key);
-      expect(pv.length).toBeLessThanOrEqual(40);
-      expect(styleFromPromptVersion(pv)).toBe(key === "schrijfwijzer" ? null : key);
-    }
+    expect(styleBlock(null)).toBe("");
+    expect(styleBlock({ label: 'Wim "zakelijk"', instruction: "Kort." })).toBe('<schrijfstijl naam="Wim zakelijk">\nKort.\n</schrijfstijl>');
+    const pv = promptVersionWithStyle(PROMPT_VERSION, { name: "Anne-Louise" });
+    expect(pv.length).toBeLessThanOrEqual(40);
+    expect(styleNameFromPromptVersion(pv)).toBe("Anne-Louise");
+    expect(styleNameFromPromptVersion(PROMPT_VERSION)).toBeNull();
+    expect(promptVersionWithStyle(PROMPT_VERSION, null)).toBe(PROMPT_VERSION);
+    expect(styleChoiceSchema.safeParse("schrijfwijzer").success).toBe(true);
+    expect(styleChoiceSchema.safeParse("iets-anders").success).toBe(false);
   });
 });

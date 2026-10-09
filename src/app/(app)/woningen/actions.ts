@@ -16,10 +16,13 @@ const idSchema = z.uuid();
 export async function createProperty(formData: FormData) {
   const session = await requireSession("properties.create");
   const mode = formData.get("mode") === "snel" ? "snel" : "handmatig";
+  // Makelaar/schrijfstijl: alleen een geldig id; de samengestelde FK garandeert dezelfde organisatie.
+  const styleId = String(formData.get("writingStyleId") ?? "");
+  const writingStyleId = idSchema.safeParse(styleId).success ? styleId : null;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("properties")
-    .insert({ organization_id: session.organizationId })
+    .insert({ organization_id: session.organizationId, writing_style_id: writingStyleId })
     .select("id")
     .single();
   if (error) throw fromDbError(error);

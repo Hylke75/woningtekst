@@ -8,7 +8,7 @@ import { GenerationPanel } from "./generation-panel";
 import { SlotEditor, type SlotPermissions } from "./slot-editor";
 import { CHANNEL_LABELS, LANGUAGE_LABELS } from "@/lib/domain/labels";
 import { touchPresence, type PresenceEntry } from "@/app/(app)/woningen/[id]/teksten/actions";
-import type { WritingStyle } from "@/lib/content/writing-styles";
+import type { StyleOption } from "./generation-panel";
 import type { Channel, ContentVersionRow, Language, ReviewIssueRow } from "@/lib/db-types";
 import type { PublicJob } from "@/lib/pipeline/jobs";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,8 @@ export function TextsWorkspace({
   job,
   protectedSlots,
   archived,
+  styles,
+  defaultStyle,
 }: {
   propertyId: string;
   versionsBySlot: Record<string, ContentVersionRow[]>;
@@ -37,12 +39,16 @@ export function TextsWorkspace({
   job: PublicJob | null;
   protectedSlots: string[];
   archived: boolean;
+  styles: (StyleOption & { name: string })[];
+  /** Makelaar/stijl van de woning, of "schrijfwijzer". */
+  defaultStyle: string;
 }) {
   const [channel, setChannel] = useState<Channel>("funda");
   const [language, setLanguage] = useState<Language>("nl");
   const [dirtySlots, setDirtySlots] = useState<Set<string>>(new Set());
   // Gekozen schrijfstijl: geldt voor de volledige generatie én voor "Opnieuw genereren" per tekst.
-  const [writingStyle, setWritingStyle] = useState<WritingStyle>("schrijfwijzer");
+  const [writingStyle, setWritingStyle] = useState<string>(defaultStyle);
+  const writingStyleName = styles.find((x) => x.id === writingStyle)?.name ?? null;
 
   const markDirty = useCallback((slot: string, dirty: boolean) => {
     setDirtySlots((prev) => {
@@ -92,6 +98,7 @@ export function TextsWorkspace({
         hasUnsavedChanges={dirtySlots.size > 0}
         writingStyle={writingStyle}
         onWritingStyleChange={setWritingStyle}
+        styles={styles}
       />
 
       {others.length ? (
@@ -161,6 +168,7 @@ export function TextsWorkspace({
                   onDirtyChange={(d) => markDirty(`${c}:${l}`, d)}
                   archived={archived}
                   writingStyle={writingStyle}
+                  writingStyleName={writingStyleName}
                 />
               </div>
             ))}
