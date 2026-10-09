@@ -18,6 +18,8 @@ const serverSchema = z.object({
   SERVER_RPC_SECRET: z.string().min(32, "SERVER_RPC_SECRET moet minimaal 32 tekens bevatten"),
   SUPABASE_SECRET_KEY: z.string().min(20).optional(),
   ANTHROPIC_API_KEY: z.string().min(10).optional(),
+  /** Alleen nodig bij een API-sleutel die niet aan één workspace gekoppeld is (header anthropic-workspace-id). */
+  ANTHROPIC_WORKSPACE_ID: z.string().regex(/^[A-Za-z0-9_-]{4,100}$/).optional(),
   ANTHROPIC_MODEL: z.string().min(3).default("claude-opus-5-5"),
   ANTHROPIC_EXTRACTION_MODEL: z.string().min(3).optional(),
   /** Lichter model voor SEO/hashtags en korte social-teksten (hergenereren/herschrijven). */

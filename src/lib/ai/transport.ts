@@ -35,9 +35,13 @@ export interface AiTransport {
 
 class AnthropicTransport implements AiTransport {
   private client: Anthropic;
-  constructor(apiKey: string, private fallbacks: "default" | "off") {
+  constructor(apiKey: string, private fallbacks: "default" | "off", workspaceId?: string) {
     // maxRetries: de SDK herhaalt 408/409/429/5xx en verbindingsfouten met exponentiële backoff.
-    this.client = new Anthropic({ apiKey, maxRetries: 3 });
+    this.client = new Anthropic({
+      apiKey,
+      maxRetries: 3,
+      ...(workspaceId ? { defaultHeaders: { "anthropic-workspace-id": workspaceId } } : {}),
+    });
   }
 
   async complete(req: AiRequest): Promise<AiResponse> {
@@ -131,5 +135,5 @@ export function getAiTransport(): AiTransport {
   if (!env.ANTHROPIC_API_KEY) {
     throw new AppError("ai_niet_geconfigureerd", "Claude is nog niet gekoppeld: ANTHROPIC_API_KEY ontbreekt in de serverconfiguratie.", 503);
   }
-  return new AnthropicTransport(env.ANTHROPIC_API_KEY, env.ANTHROPIC_FALLBACKS);
+  return new AnthropicTransport(env.ANTHROPIC_API_KEY, env.ANTHROPIC_FALLBACKS, env.ANTHROPIC_WORKSPACE_ID);
 }
