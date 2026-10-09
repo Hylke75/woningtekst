@@ -374,7 +374,7 @@ export function SlotEditor({
               <Label htmlFor={`instructie-${channel}-${language}`} className="text-xs text-muted-foreground">
               Optionele instructie bij opnieuw genereren
               </Label>
-              <HelpTip label="Optionele instructie bij opnieuw genereren">Extra aanwijzing voor alleen deze nieuwe versie, bijv. “noem de tuin eerder”. Feiten, privacyregels en de schrijfwijzer gaan altijd voor.</HelpTip>
+              <HelpTip label="optionele instructie">Extra aanwijzing voor alleen deze nieuwe versie, bijv. “noem de tuin eerder”. Feiten, privacyregels en de schrijfwijzer gaan altijd voor.</HelpTip>
             </div>
             <Input
               id={`instructie-${channel}-${language}`}
