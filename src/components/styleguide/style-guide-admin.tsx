@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MarkdownView } from "./markdown-view";
 import { activateDefaultStyleGuide, activateStyleGuide, analyseCorrections, analyseExamples, publishStyleGuide } from "@/app/(app)/schrijfwijzer/actions";
 import { newIdempotencyKey } from "@/lib/client-api";
+import { HelpTip } from "@/components/common/help-tip";
 
 export function ActivateDefaultButton() {
   const router = useRouter();
@@ -130,18 +131,27 @@ export function StyleGuideEditor({ initialTitle, initialContent, aiAvailable }: 
             </div>
           ) : null}
           <div className="space-y-1.5">
-            <Label htmlFor="sg-titel">Titel</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="sg-titel">Titel</Label>
+              <HelpTip label="Titel">Naam van deze schrijfwijzerversie, bijv. “Schrijfwijzer Korff de Gidts”. Zichtbaar in de versiegeschiedenis.</HelpTip>
+            </div>
             <Input id="sg-titel" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-card" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="sg-inhoud">Inhoud (Markdown)</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="sg-inhoud">Inhoud (Markdown)</Label>
+              <HelpTip label="Inhoud (Markdown)">De volledige schrijfwijzer die Claude bij elke tekst volgt: structuur, toon, lengtes, te vermijden formuleringen en de letterlijke standaardpassages. Publiceren maakt een nieuwe versie; bestaande teksten veranderen niet.</HelpTip>
+            </div>
             <Textarea id="sg-inhoud" value={content} onChange={(e) => setContent(e.target.value)} rows={24} className="bg-card font-mono text-[13px]" />
             <p className="text-xs text-muted-foreground">
               Standaardpassages staan tussen <code>&lt;!-- passage:naam --&gt;</code> en <code>&lt;!-- /passage --&gt;</code> en worden letterlijk overgenomen. Verboden formuleringen staan onder &ldquo;Te vermijden&rdquo;.
             </p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="sg-notitie">Wat is er gewijzigd?</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="sg-notitie">Wat is er gewijzigd?</Label>
+              <HelpTip label="Wat is er gewijzigd?">Korte omschrijving van de wijziging voor de versiegeschiedenis, bijv. “clichélijst aangevuld”. Verplicht bij publiceren.</HelpTip>
+            </div>
             <Input id="sg-notitie" value={note} onChange={(e) => setNote(e.target.value)} className="bg-card" placeholder="Bijv. clichélijst aangevuld" />
           </div>
           <Button onClick={() => void publish()} disabled={busy !== null || note.trim().length < 3}>
@@ -156,11 +166,17 @@ export function StyleGuideEditor({ initialTitle, initialContent, aiAvailable }: 
             Upload het document met voorbeeldomschrijvingen (bijv. <em>Korff-de-Gidts-woningomschrijvingen.docx</em>). Claude analyseert de structuur en stijl en stelt een verbeterde schrijfwijzer voor. Het bestand wordt niet opgeslagen; er wordt niets automatisch gepubliceerd.
           </p>
           <div className="space-y-1.5">
-            <Label htmlFor="sg-bestand">Voorbeelddocument (DOCX, PDF of TXT, max. 4 MB)</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="sg-bestand">Voorbeelddocument (DOCX, PDF of TXT, max. 4 MB)</Label>
+              <HelpTip label="Voorbeelddocument">Een document met goede bestaande woningomschrijvingen. Claude analyseert structuur en stijl en stelt een verbeterde schrijfwijzer voor. Het bestand wordt niet opgeslagen; persoonsgegevens worden vooraf gemaskeerd.</HelpTip>
+            </div>
             <Input id="sg-bestand" type="file" accept=".docx,.pdf,.txt" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="bg-card" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="sg-plak">Of plak voorbeeldteksten</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="sg-plak">Of plak voorbeeldteksten</Label>
+              <HelpTip label="Of plak voorbeeldteksten">In plaats van een bestand kunt u hier voorbeeldteksten plakken (minimaal enkele alinea’s).</HelpTip>
+            </div>
             <Textarea id="sg-plak" value={examples} onChange={(e) => setExamples(e.target.value)} rows={8} className="bg-card" />
           </div>
           <Button onClick={() => void analyse()} disabled={busy !== null || !aiAvailable || (!file && examples.trim().length < 500)}>

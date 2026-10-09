@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { saveWritingStyle } from "@/app/(app)/schrijfwijzer/actions";
 import type { WritingStyleRow } from "@/lib/content/writing-styles";
 import { formatDateTime } from "@/lib/format";
+import { HelpTip } from "@/components/common/help-tip";
 
 type Draft = { id?: string; name: string; label: string; description: string; instruction: string; isActive: boolean; sortOrder: number };
 
@@ -50,20 +51,32 @@ function StyleForm({ initial, onSaved, submitLabel }: { initial: Draft; onSaved:
     >
       <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
         <div className="space-y-1.5">
-          <Label htmlFor={`ws-naam-${key}`}>Makelaar (naam)</Label>
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor={`ws-naam-${key}`}>Makelaar (naam)</Label>
+            <HelpTip label="Makelaar (naam)">Korte naam van de makelaar, bijv. Wim. Verschijnt bij de versie van een tekst (“stijl Wim”) en moet uniek zijn binnen het kantoor.</HelpTip>
+          </div>
           <Input id={`ws-naam-${key}`} value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} required maxLength={40} className="bg-card" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor={`ws-titel-${key}`}>Titel in de keuzelijst</Label>
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor={`ws-titel-${key}`}>Titel in de keuzelijst</Label>
+            <HelpTip label="Titel in de keuzelijst">Zo ziet de stijl eruit in de keuzelijsten bij een nieuwe woning en op het tabblad Teksten, bijv. “Wim – zeer zakelijk”.</HelpTip>
+          </div>
           <Input id={`ws-titel-${key}`} value={d.label} onChange={(e) => setD({ ...d, label: e.target.value })} required maxLength={80} className="bg-card" placeholder="Bijv. Wim – zeer zakelijk" />
         </div>
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor={`ws-omschrijving-${key}`}>Korte omschrijving</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor={`ws-omschrijving-${key}`}>Korte omschrijving</Label>
+          <HelpTip label="Korte omschrijving">Eén regel die de stijl samenvat, getoond onder de titel in de keuzelijst. Wordt niet naar Claude gestuurd.</HelpTip>
+        </div>
         <Input id={`ws-omschrijving-${key}`} value={d.description} onChange={(e) => setD({ ...d, description: e.target.value })} maxLength={200} className="bg-card" />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor={`ws-instructie-${key}`}>Stijlinstructie voor Claude</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor={`ws-instructie-${key}`}>Stijlinstructie voor Claude</Label>
+          <HelpTip label="Stijlinstructie voor Claude">Deze tekst gaat letterlijk naar Claude bij het schrijven. Beschrijf toon, zinslengte, woordkeus, aanspreekvorm en lengte per kanaal. Hoe concreter, hoe groter het verschil. Feiten- en privacyregels gelden altijd.</HelpTip>
+        </div>
         <Textarea id={`ws-instructie-${key}`} value={d.instruction} onChange={(e) => setD({ ...d, instruction: e.target.value })} rows={12} maxLength={8000} className="bg-card text-[13px]" />
         <p className="text-xs text-muted-foreground">Beschrijf toon, zinslengte, woordkeus en lengte. Feiten, privacyregels en de vaste Funda-opbouw gelden altijd, ongeacht de stijl.</p>
       </div>

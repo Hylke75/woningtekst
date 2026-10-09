@@ -53,6 +53,7 @@ import { formatDateTime } from "@/lib/format";
 import type { Channel, ContentVersionRow, Language, ReviewIssueRow } from "@/lib/db-types";
 import type { TextReviewOutput } from "@/lib/ai/schemas";
 import { logCopy, restoreVersion, saveTextVersion, setTextStatus } from "@/app/(app)/woningen/[id]/teksten/actions";
+import { HelpTip } from "@/components/common/help-tip";
 
 type RewriteMode = "korter" | "uitgebreider" | "zakelijker" | "persoonlijker" | "natuurlijker" | "andere_invalshoek";
 const REWRITES: { mode: RewriteMode; label: string }[] = [
@@ -369,9 +370,12 @@ export function SlotEditor({
 
         {permissions.regenerate && !archived ? (
           <div className="space-y-1.5">
-            <Label htmlFor={`instructie-${channel}-${language}`} className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor={`instructie-${channel}-${language}`} className="text-xs text-muted-foreground">
               Optionele instructie bij opnieuw genereren
-            </Label>
+              </Label>
+              <HelpTip label="Optionele instructie bij opnieuw genereren">Extra aanwijzing voor alleen deze nieuwe versie, bijv. “noem de tuin eerder”. Feiten, privacyregels en de schrijfwijzer gaan altijd voor.</HelpTip>
+            </div>
             <Input
               id={`instructie-${channel}-${language}`}
               value={instruction}
@@ -550,6 +554,12 @@ export function SlotEditor({
   );
 }
 
+const SEO_TIPS: Record<string, string> = {
+  "SEO-titel": "De titel die Google toont (maximaal ±60 tekens): woningtype, straat of wijk en plaats. Ook zichtbaar in de browsertab.",
+  Metaomschrijving: "De korte omschrijving onder de titel in Google (120–155 tekens). Feitelijk en uitnodigend.",
+  "URL-slug": "Het laatste deel van het webadres van de woningpagina, in kleine letters met koppeltekens, bijv. herenhuis-laan-van-meerdervoort-120-den-haag.",
+};
+
 function SeoField({
   label,
   value,
@@ -571,9 +581,12 @@ function SeoField({
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <Label htmlFor={id} className="text-xs">
-          {label}
-        </Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor={id} className="text-xs">
+            {label}
+          </Label>
+          {SEO_TIPS[label] ? <HelpTip label={label}>{SEO_TIPS[label]}</HelpTip> : null}
+        </div>
         <span className={`text-[11px] tabular-nums ${value.length > max ? "text-destructive" : "text-muted-foreground"}`}>
           {value.length}/{max}
           <button type="button" onClick={onCopy} className="ml-2 text-primary hover:underline" disabled={!value}>

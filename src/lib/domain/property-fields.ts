@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FIELD_TIPS } from "@/lib/domain/field-tips";
 
 /**
  * Centrale velddefinitie voor het woningprofiel (opdracht §5). Eén bron voor:
@@ -35,6 +36,8 @@ export type FieldDef = {
   label: string;
   kind: FieldKind;
   help?: string;
+  /** Uitleg bij hover/focus (ⓘ); zie field-tips.ts. */
+  tip?: string;
   placeholder?: string;
   options?: readonly string[];
   /** Kolomnaam in properties (alleen sectie 1). */
@@ -94,7 +97,7 @@ export const SALE_CONDITIONS = ["kosten_koper", "vrij_op_naam"] as const;
 
 const ORIENTATIONS = ["Noord", "Noordoost", "Oost", "Zuidoost", "Zuid", "Zuidwest", "West", "Noordwest", "Meerdere zijden"] as const;
 
-export const FIELDS: FieldDef[] = [
+const RAW_FIELDS: FieldDef[] = [
   // ---------------- Sectie 1: Basisgegevens ----------------
   { key: "address", column: "address", section: "basis", label: "Straatnaam", kind: "text", requiredForGeneration: true, extractable: true, maxLength: 200, placeholder: "Bijv. Laan van Meerdervoort" },
   { key: "house_number", column: "house_number", section: "basis", label: "Huisnummer", kind: "text", requiredForGeneration: true, extractable: true, maxLength: 20 },
@@ -193,6 +196,10 @@ export const FIELDS: FieldDef[] = [
   { key: "publicatie.publicatiedatum", section: "publicatie", label: "Publicatiedatum", kind: "date" },
   { key: "publicatie.extra_hashtags", section: "publicatie", label: "Aanvullende hashtags", kind: "tags", help: "Gescheiden door spaties of komma's, zonder of met #." },
 ];
+
+/** Alle velden, elk met een uitleg (tooltip) uit field-tips.ts. */
+export const FIELDS: FieldDef[] = RAW_FIELDS.map((f) => ({ ...f, tip: FIELD_TIPS[f.key] ?? f.help }));
+
 
 export const FIELD_BY_KEY = new Map(FIELDS.map((f) => [f.key, f]));
 

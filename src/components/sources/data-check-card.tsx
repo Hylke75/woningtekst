@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { setDataChecked } from "@/app/(app)/woningen/actions";
 import { formatDateTime } from "@/lib/format";
+import { HelpTip } from "@/components/common/help-tip";
 
 export function DataCheckCard({
   propertyId,
@@ -50,9 +51,12 @@ export function DataCheckCard({
                 startTransition(() => router.refresh());
               }}
             />
-            <Label htmlFor="gecontroleerd" className="text-sm font-medium">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="gecontroleerd" className="text-sm font-medium">
               Ik heb de woninggegevens gecontroleerd
-            </Label>
+              </Label>
+              <HelpTip label="Ik heb de woninggegevens gecontroleerd">Verplicht vóór het genereren: bevestig dat u de gegevens, ook AI-voorstellen uit documenten, heeft nagelopen. Na elke wijziging van de gegevens bevestigt u dit opnieuw.</HelpTip>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">
             {checkedAt

@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { CHANNEL_LABELS, LANGUAGE_LABELS } from "@/lib/domain/labels";
 import type { Channel, Language } from "@/lib/db-types";
 import type { PublicJob } from "@/lib/pipeline/jobs";
+import { HelpTip } from "@/components/common/help-tip";
 
 const STEPS = [
   { key: "analyse", label: "Profiel analyseren en verkoopargumenten bepalen" },
@@ -163,7 +164,12 @@ export function GenerationPanel({
 
       {canGenerate ? (
         <fieldset className="mt-4">
-          <legend className="mb-2 text-sm font-medium">Schrijfstijl</legend>
+          <legend className="mb-2 flex items-center gap-1.5 text-sm font-medium">
+            Schrijfstijl
+            <HelpTip label="Schrijfstijl">
+              Bepaalt toon, zinslengte en lengte van de teksten. Standaard is de stijl van de makelaar van deze woning. Feiten, privacyregels en de Funda-opbouw zijn bij elke stijl gelijk. De gebruikte stijl staat bij elke versie in de versiegeschiedenis.
+            </HelpTip>
+          </legend>
           <div role="radiogroup" aria-label="Schrijfstijl" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {[{ id: STANDARD_STYLE, label: STANDARD_STYLE_LABEL, description: "De huisstijl van Korff de Gidts" }, ...styles].map((def) => {
               const selected = writingStyle === def.id;

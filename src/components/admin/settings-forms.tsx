@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { updateOrganizationSettings, updateOwnName } from "@/app/(app)/instellingen/actions";
 import { ROLE_LABELS, type AppRole } from "@/lib/auth/permissions";
 import type { OrganizationSettingsRow } from "@/lib/db-types";
+import { HelpTip } from "@/components/common/help-tip";
 
 export function ProfileForm({ fullName }: { fullName: string }) {
   const router = useRouter();
@@ -31,7 +32,10 @@ export function ProfileForm({ fullName }: { fullName: string }) {
       }}
     >
       <div className="flex-1 space-y-1.5">
-        <Label htmlFor="naam">Volledige naam</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="naam">Volledige naam</Label>
+          <HelpTip label="Volledige naam">Uw naam zoals collega’s die zien bij tekstversies, goedkeuringen en in het gebruikersbeheer.</HelpTip>
+        </div>
         <Input id="naam" value={name} onChange={(e) => setName(e.target.value)} className="bg-card" autoComplete="name" />
       </div>
       <Button type="submit" disabled={busy || name.trim() === fullName}>
@@ -41,13 +45,13 @@ export function ProfileForm({ fullName }: { fullName: string }) {
   );
 }
 
-const NUMBER_FIELDS: { key: keyof OrganizationSettingsRow; label: string; help: string; step?: string }[] = [
-  { key: "ai_daily_cost_limit_eur", label: "Dagbudget AI (€)", help: "Geschatte kosten per dag voor de hele organisatie.", step: "0.01" },
-  { key: "ai_monthly_cost_limit_eur", label: "Maandbudget AI (€)", help: "Geschatte kosten per kalendermaand.", step: "0.01" },
-  { key: "ai_requests_per_minute_per_user", label: "AI-verzoeken per minuut per gebruiker", help: "Bescherming tegen misbruik en dubbele verzoeken." },
-  { key: "ai_daily_requests_per_user", label: "AI-verzoeken per dag per gebruiker", help: "" },
-  { key: "retention_months_after_sale", label: "Bewaartermijn na verkoop (maanden)", help: "Daarna wordt het dossier ter verwijdering voorgesteld." },
-  { key: "retention_months_inactive_concept", label: "Bewaartermijn inactieve concepten (maanden)", help: "" },
+const NUMBER_FIELDS: { key: keyof OrganizationSettingsRow; label: string; help: string; tip: string; step?: string }[] = [
+  { key: "ai_daily_cost_limit_eur", label: "Dagbudget AI (€)", help: "Geschatte kosten per dag voor de hele organisatie.", tip: "Maximaal geschatte Claude-kosten per kalenderdag voor het hele kantoor. Is het bereikt, dan worden nieuwe AI-verzoeken tot middernacht geweigerd.", step: "0.01" },
+  { key: "ai_monthly_cost_limit_eur", label: "Maandbudget AI (€)", help: "Geschatte kosten per kalendermaand.", tip: "Maximaal geschatte Claude-kosten per kalendermaand. Bij 80% krijgen administrators een melding (als de dagelijkse controle is ingesteld); bij 100% stoppen AI-verzoeken tot de volgende maand.", step: "0.01" },
+  { key: "ai_requests_per_minute_per_user", label: "AI-verzoeken per minuut per gebruiker", help: "Bescherming tegen misbruik en dubbele verzoeken.", tip: "Hoeveel AI-aanroepen één medewerker per minuut mag doen. Een volledige generatie telt als vijf aanroepen. Beschermt tegen per ongeluk herhaald klikken en misbruik." },
+  { key: "ai_daily_requests_per_user", label: "AI-verzoeken per dag per gebruiker", help: "", tip: "Maximaal aantal AI-aanroepen per medewerker per dag; een extra rem naast het dagbudget van de organisatie." },
+  { key: "retention_months_after_sale", label: "Bewaartermijn na verkoop (maanden)", help: "Daarna wordt het dossier ter verwijdering voorgesteld.", tip: "Na zoveel maanden sinds de status verkocht of ingetrokken komt het dossier op de lijst Bewaarbeleid. De app verwijdert nooit zelf; een administrator beslist na controle van wettelijke bewaarplichten." },
+  { key: "retention_months_inactive_concept", label: "Bewaartermijn inactieve concepten (maanden)", help: "", tip: "Conceptdossiers die zo lang niet zijn gewijzigd, worden ter verwijdering voorgesteld. Ook hier verwijdert de app nooit automatisch." },
 ];
 
 export function OrganizationSettingsForm({ settings }: { settings: OrganizationSettingsRow }) {
@@ -72,14 +76,22 @@ export function OrganizationSettingsForm({ settings }: { settings: OrganizationS
       <div className="grid gap-4 sm:grid-cols-2">
         {NUMBER_FIELDS.map((f) => (
           <div key={f.key} className="space-y-1.5">
-            <Label htmlFor={f.key}>{f.label}</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor={f.key}>{f.label}</Label>
+              <HelpTip label={f.label}>{f.tip}</HelpTip>
+            </div>
             <Input id={f.key} type="number" min={0} step={f.step ?? "1"} value={values[f.key]} onChange={(e) => setValues({ ...values, [f.key]: e.target.value })} className="bg-card" />
             {f.help ? <p className="text-xs text-muted-foreground">{f.help}</p> : null}
           </div>
         ))}
       </div>
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">Rollen met goedkeuringsrechten</legend>
+        <legend className="flex items-center gap-1.5 text-sm font-medium">
+          Rollen met goedkeuringsrechten
+          <HelpTip label="Rollen met goedkeuringsrechten">
+            Welke rollen teksten definitief mogen goedkeuren. Administrator kan altijd goedkeuren. Een redacteur kan teksten alleen ter goedkeuring aanbieden, tenzij u die rol hier aanvinkt.
+          </HelpTip>
+        </legend>
         <div className="flex flex-wrap gap-4">
           {(Object.keys(ROLE_LABELS) as AppRole[]).map((r) => (
             <label key={r} className="flex items-center gap-2 text-sm">

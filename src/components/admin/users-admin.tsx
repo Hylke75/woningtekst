@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { inviteUser, removeEmailDomain, revokeInvitation, setEmailDomain, updateMember } from "@/app/(app)/gebruikers/actions";
 import { ROLE_LABELS, type AppRole } from "@/lib/auth/permissions";
 import { formatDate } from "@/lib/format";
+import { HelpTip } from "@/components/common/help-tip";
 
 export type MemberView = { userId: string; name: string; email: string; role: AppRole; isActive: boolean; isSelf: boolean };
 export type InvitationView = { id: string; email: string; role: AppRole; createdAt: string; expiresAt: string };
@@ -52,11 +53,17 @@ export function UsersAdmin({ members, invitations, domains }: { members: MemberV
           }}
         >
           <div className="flex-1 space-y-1.5">
-            <Label htmlFor="uitnodiging-email">E-mailadres</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="uitnodiging-email">E-mailadres</Label>
+              <HelpTip label="E-mailadres">Het werkadres van de medewerker. Die maakt via /registreren een account aan met precies dit adres en krijgt toegang na bevestiging van de e-mail.</HelpTip>
+            </div>
             <Input id="uitnodiging-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-card" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="uitnodiging-rol">Rol</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="uitnodiging-rol">Rol</Label>
+              <HelpTip label="Rol">Administrator: beheer van gebruikers, schrijfwijzer en instellingen (vereist twee-stapsverificatie). Makelaar: woningen, generatie en goedkeuren. Redacteur: teksten schrijven en ter goedkeuring aanbieden.</HelpTip>
+            </div>
             <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
               <SelectTrigger id="uitnodiging-rol" className="w-full bg-card sm:w-44">
                 <SelectValue />
@@ -108,11 +115,17 @@ export function UsersAdmin({ members, invitations, domains }: { members: MemberV
           }}
         >
           <div className="flex-1 space-y-1.5">
-            <Label htmlFor="domein">Domein</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="domein">Domein</Label>
+              <HelpTip label="Domein">Het deel na de @, bijv. korffdegidts.nl. Iedereen die een adres op dit domein bevestigt, krijgt automatisch toegang. Publieke domeinen zoals gmail.com zijn niet toegestaan.</HelpTip>
+            </div>
             <Input id="domein" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="korffdegidts.nl" required className="bg-card" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="domein-rol">Standaardrol</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="domein-rol">Standaardrol</Label>
+              <HelpTip label="Standaardrol">De rol die nieuwe medewerkers via dit domein krijgen. Een persoonlijke uitnodiging met een andere rol gaat altijd voor; u kunt de rol later aanpassen.</HelpTip>
+            </div>
             <Select value={domainRole} onValueChange={(v) => setDomainRole(v as AppRole)}>
               <SelectTrigger id="domein-rol" className="w-full bg-card sm:w-44">
                 <SelectValue />

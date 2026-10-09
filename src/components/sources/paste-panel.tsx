@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { api, newIdempotencyKey } from "@/lib/client-api";
+import { HelpTip } from "@/components/common/help-tip";
 
 export function PastePanel({ propertyId, onDone }: { propertyId: string; onDone?: () => void }) {
   const router = useRouter();
@@ -38,7 +39,10 @@ export function PastePanel({ propertyId, onDone }: { propertyId: string; onDone?
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <Label htmlFor="plaktekst">Woningomschrijving of dossiertekst</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="plaktekst">Woningomschrijving of dossiertekst</Label>
+          <HelpTip label="Woningomschrijving of dossiertekst">Plak een bestaande omschrijving, e-mail of dossiertekst. Claude haalt er woninggegevens uit met bron en citaat; namen en contactgegevens van derden worden vooraf gemaskeerd. U bevestigt alles zelf.</HelpTip>
+        </div>
         <Textarea
           id="plaktekst"
           rows={8}

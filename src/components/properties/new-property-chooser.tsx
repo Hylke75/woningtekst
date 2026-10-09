@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STANDARD_STYLE, STANDARD_STYLE_LABEL } from "@/lib/content/writing-styles";
+import { HelpTip } from "@/components/common/help-tip";
 
 type StyleOption = { id: string; label: string; description: string };
 
@@ -33,9 +34,12 @@ export function NewPropertyChooser({ styles, action }: { styles: StyleOption[]; 
   return (
     <div className="space-y-5">
       <div className="rounded-xl border bg-card p-5">
-        <Label htmlFor="nieuw-makelaar" className="text-sm font-medium">
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="nieuw-makelaar" className="text-sm font-medium">
           Makelaar
-        </Label>
+          </Label>
+          <HelpTip label="Makelaar">De makelaar bepaalt de standaard schrijfstijl van alle teksten voor deze woning. Op het tabblad Teksten kunt u per generatie nog een andere stijl kiezen. Stijlen beheert u onder Schrijfwijzer.</HelpTip>
+        </div>
         <p className="mb-2 text-xs text-muted-foreground">Bepaalt de schrijfstijl van de teksten. U kunt per generatie nog een andere stijl kiezen.</p>
         <Select value={style} onValueChange={setStyle}>
           <SelectTrigger id="nieuw-makelaar" className="w-full bg-card sm:w-96">

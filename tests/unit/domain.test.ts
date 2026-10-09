@@ -166,3 +166,15 @@ describe("broncontrole", () => {
     expect(hints).toEqual({ year_built: { status: "ai", sources: 1 }, rooms: { status: "conflict", sources: 1 } });
   });
 });
+
+describe("uitleg bij velden", () => {
+  it("elk veld van het woningprofiel heeft een uitleg voor de tooltip", async () => {
+    const { FIELDS } = await import("@/lib/domain/property-fields");
+    const { FIELD_TIPS } = await import("@/lib/domain/field-tips");
+    const missing = FIELDS.filter((f) => !f.tip || f.tip.trim().length < 15).map((f) => f.key);
+    expect(missing).toEqual([]);
+    // Geen verweesde uitleg voor velden die niet (meer) bestaan
+    const keys = new Set(FIELDS.map((f) => f.key));
+    expect(Object.keys(FIELD_TIPS).filter((k) => !keys.has(k))).toEqual([]);
+  });
+});

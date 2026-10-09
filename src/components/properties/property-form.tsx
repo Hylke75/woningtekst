@@ -319,12 +319,13 @@ function SectionFields({
                 {f.label}
                 {f.requiredForGeneration ? <span className="text-destructive" aria-label="verplicht voor tekstgeneratie">*</span> : null}
               </Label>
-              {f.help ? (
+              {f.tip ?? f.help ? (
                 <Tooltip>
-                  <TooltipTrigger type="button" aria-label={`Toelichting ${f.label}`} className="text-muted-foreground hover:text-foreground">
-                    <Info className="size-3.5" />
+                  <TooltipTrigger type="button" className="text-muted-foreground hover:text-foreground">
+                    <Info className="size-3.5" aria-hidden />
+                    <span className="sr-only">Uitleg bij {f.label}</span>
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">{f.help}</TooltipContent>
+                  <TooltipContent className="max-w-xs leading-relaxed">{f.tip ?? f.help}</TooltipContent>
                 </Tooltip>
               ) : null}
               {hint?.status === "conflict" ? (
